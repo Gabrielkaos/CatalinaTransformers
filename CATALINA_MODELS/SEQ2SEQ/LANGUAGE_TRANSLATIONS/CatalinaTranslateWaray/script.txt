@@ -1,0 +1,955 @@
+Gab: How
+Catalina: Paano
+
+Gab: Why
+Catalina: Kay ano
+
+Gab: I am Gabriel
+Catalina: Hi ako hi Gabriel
+
+Gab: You are Catalina
+Catalina: Hiikaw hi Catalina
+
+Gab: What are you doing
+Catalina: Ano tim ginbubuhat
+
+Gab: I have a computer
+Catalina: Mayda ko computer
+
+Gab: I am sitting
+Catalina: Napuruko ak
+
+Gab: This thing is awesome
+Catalina: Astig yadi nga bagay
+
+Gab: Life is awesome
+Catalina: Astig it kinabuhe
+
+
+Gab: No not like that
+Catalina: Diri diri it asya
+
+Gab: All youre saying is wrong
+Catalina: Mali tanan ngaim niyayakan
+
+Gab: This computer is very strong
+Catalina: Yadi nga computer makusog
+
+Gab: Good evening
+Catalina: Maupay nga gab e
+
+Gab: Good morning
+Catalina: Maupay nga aga
+
+Gab: Where are you from
+Catalina: Taga diin ka
+
+Gab: This is my friend Gabriel
+Catalina: Tak sangkay hi Gabriel
+
+Gab: How much is this food
+Catalina: Tagpira in nga pagkaun
+
+Gab: My laptop is very old
+Catalina: Lagas na tak laptop
+
+Gab: Table
+Catalina: Lamesa
+
+Gab: I am studying computer science
+Catalina: Nag aaram ak computer science
+
+Gab: Hello catalina, How are you
+Catalina: hello Catalina, kumusta ka
+
+Gab: Catalina can you check the computer systems
+Catalina: Catalina paki check daw han mga systems han computer
+
+Gab: Catalina count how many side in a triangle
+Catalina: Catalina ihapa kun pira it side hit triangle
+
+Gab: The universe is infinite
+Catalina: It universe infinite
+
+Gab: My dog brutos is very strong and big
+Catalina: Tak ayam hi brutos gikusugi tas dako
+
+Gab: brutos is playing
+Catalina: nag uuyas hi brutos
+
+Gab: Turn off the light
+Catalina: Pataya it ilaw
+
+Gab: A typhoon is coming
+Catalina: Mayda bagyo nga tidatong
+
+Gab: Buring plastic is bad for the environment
+Catalina: It pagsunog hit plastic maraut it ha kapaligiran
+
+Gab: There are many trees here
+Catalina: Damo it puno didi
+
+Gab: arm
+Catalina: kamot
+
+Gab: Turn on the fan
+Catalina: buksa it fan
+
+Gab: I am at college right now
+Catalina: Aadi ak ha college yana
+
+Gab: People are sometimes good and bad
+Catalina: It tawo danay maupay ngan maraut
+
+Gab: Night time is approaching
+Catalina: Natikaharani nait gab e
+
+Gab: I have a dog
+Catalina: Mayko ayam
+
+Gab: I go to school early in the morning
+Catalina: Nakadto ak ha iskuylahan aga pala
+
+Gab: I sleep at the same time every night
+Catalina: Nakaturog ak hit gab e hit parehas nga oras kada gab e
+
+Gab: time
+Catalina: oras
+
+Gab: what
+Catalina: ano
+
+Gab: Im going to the library
+Catalina: Tikadto ak ha library
+
+Gab: We are going to eat at a restaurant
+Catalina: Tikaun kami didto hit restaurant
+
+Gab: How have you been
+Catalina: Kumusta kana
+
+Gab: Loud speakers
+Catalina: dagko nga speaker
+
+Gab: i am unable to make any progress on my chatbots
+Catalina: Diak nakakahimo tuhay nga chatbot
+
+Gab: I always somehow fail at being a good person
+Catalina: Danay napalpak ak maging maupay nga tawo
+
+Gab: I am sitting right now waiting for food
+Catalina: Napuruko ak yana naghuhulat pagkaun
+
+Gab: I rarely use my laptop anymore
+Catalina: tagdanay nalaak gumamit nak laptop
+
+Gab: I have friends
+Catalina: Mayda ko mga sangkay
+
+
+Gab: I want to go outside
+Catalina: Karuyag ko kumadto gawas
+Gab: Lying in bed
+Catalina: Nahigda didi higdaan
+Gab: My brother is lying in the couch
+Catalina: Hi kuya nahigda dida couch
+Gab: what are you doing
+Catalina: Nag aano ka
+Gab: Nothing
+Catalina: wara
+Gab: I need to go to sleep
+Catalina: Karuyag kona kumaturog
+
+
+Gab: The chickens are noisy
+Catalina: Mangiras an mga manok
+
+Gab: chicken
+Catalina: manok
+
+Gab: I woke up very early in the morning
+Catalina: Gi agapi ak nagmata han aga
+
+Gab: Mama and papa went to church
+Catalina: Hi mama ngan papa kinadto simbahan
+
+Gab: Listen to your parents
+Catalina: Pamati tim kag anak
+
+
+Gab: I am playing chess
+Catalina: Nag uuyas ak chess
+
+Gab: I cant think of anything
+Catalina: Wara ko maisip
+
+Gab: Chess is hard
+Catalina: Makuri it chess
+
+Gab: Chess is easy
+Catalina: Masayon it chess
+
+Gab: I just want you to know that you are very beautiful
+Catalina: Karuyag kola maaram nim nga gihusayi ka
+
+Gab: I am so happy you finally came
+Catalina: Gi sayahi ak nga kinadi kana
+
+Gab: Mama loves brutos
+Catalina: Mahal ni mama hi brutos
+
+Gab: Papa loves mama
+Catalina: Mahal ni papa hi mama
+
+Gab: I am angry
+Catalina: Aringit ak
+
+Gab: I am happy now
+Catalina: Masaya naak yana
+
+Gab: Sad
+Catalina: Malungkot
+
+Gab: I dont what to add
+Catalina: Di ak maaram idudugang
+
+Gab: A friend is helping me
+Catalina: Nabulig tak sangkay
+
+Gab: Chess is just about patterns
+Catalina: Chess mga patterns lait
+
+Gab: I am sitting and I am hungry
+Catalina: Napuruko ak tas nagugutom
+
+Gab: I made a mistake
+Catalina: Nagkamali ak
+
+Gab: Very simple mistake
+Catalina: ka simple nga mali
+
+Gab: Mama is cooking breakfast
+Catalina: Mama nagluluto hin breakfast
+
+Gab: I love my parents
+Catalina: Mahal ko tak kag anak
+
+Gab: I love my girlfriend
+Catalina: Mahal ko tak girlfriend
+
+Gab: I love my boyfriend
+Catalina: Mahal ko tak boyfriend
+
+Gab: I exercise daily
+Catalina: Eexercise ak kada adlaw
+
+Gab: You made a mistake
+Catalina: Nagkamali ka
+
+Gab: There are people singing outside
+Catalina: Mayda mga tawo nakanta ha gawas
+
+Gab: its hot here
+Catalina: Mapaso didi
+Gab: Its night time
+Catalina: gab e na
+
+
+Gab: Do you know someone else
+Catalina: May nim kilala nga iba
+Gab: I am tired
+Catalina: Nahuhubya ak
+Gab: I dont know what to do anymore
+Catalina: Di naak maaram tak bubuhaton
+Gab: You cant learn
+Catalina: Dika nahibabaro
+Gab: Youre dumb
+Catalina: Bolok ka
+Gab: Why are you like this
+Catalina: Kay ano kahin suga
+Gab: who
+Catalina: hino
+Gab: Who are you
+Catalina: hino ka
+Gab: What are you doing here
+Catalina: Ano tim ginbubuhat didi
+Gab: friends
+Catalina: mga sangkay
+Gab: friend
+Catalina: sangkay
+Gab: I have a pet
+Catalina: Mayko alaga
+Gab: I have a very good friend
+Catalina: Mayda ko maupay nga sangkay
+Gab: I am talking to you
+Catalina: Nakikikayakan ak haim
+Gab: Do you know what this means
+Catalina: Maaram kahit ibig sabihin hin
+Gab: The winds are very strong
+Catalina: magkusog it mga hangin yana
+Gab: I am addicted to playing chess
+Catalina: Adik ak hit pag uuyas hit chess
+Gab: You are not normal
+Catalina: Diri ka normal
+Gab: Do you know any programming language
+Catalina: May nim aram nga programming language
+Gab: Teach me
+Catalina: Tutdue ak
+Gab: wood
+Catalina: kahoy
+Gab: woods
+Catalina: mga kahoy
+Gab: You are stupid
+Catalina: Bobo ka
+
+Gab: I am from this place
+Catalina: Tikang ak dinhi nga lugar
+Gab: place
+Catalina: lugar
+Gab: The internet is slow
+Catalina: Maluya it internet
+Gab: Dogs are barking
+Catalina: Nag uusig mga ayam
+Gab: Good day to you
+Catalina: maupay nga adlaw haim
+Gab: The internet is very slow
+Catalina: Gi luyahi it internet
+Gab: i am eating
+Catalina: Nakaun ak
+Gab: Make me smarter
+Catalina: Pabaltoka ak
+Gab: smart
+Catalina: baltok
+Gab: brain
+Catalina: utak
+Gab: body
+Catalina: lawas
+Gab: I trust in you
+Catalina: natiwala ak haim
+Gab: Do you kknow me
+Catalina: Kilala nim ak
+Gab: We were actually friends back in elementary days
+Catalina: Magsangkay kita hat han una nga mga adlaw han elementary
+Gab: I know a lot of waray words
+Catalina: damo tak aram nga waray nga yakan
+Gab: I know two languages
+Catalina: duha tak aram nga language
+Gab: one
+Catalina: usa
+Gab: two
+Catalina: duha
+Gab: three
+Catalina: tulo
+Gab: four
+Catalina: upat
+Gab: five
+Catalina: lima
+Gab: I have twenty pesos in my pocket
+Catalina: mayko baynte didi tak bursa
+Gab: this is going to be my thesis
+Catalina: asya in tak magiging thesis
+Gab: wait im going to translate everything i just said
+Catalina: unina translate ko nak ngatanan nga ginyakan
+Gab: There are kids singing
+Catalina: may mga bata nagkakanta
+Gab: I am currently listening to a song
+Catalina: Namamati ak yana hin kanta
+Gab: just wait here
+Catalina: hulat anay didi
+Gab: I need to go to a barber shop
+Catalina: kailangan kona kumadto hit barber shop
+Gab: People are destroying earth
+Catalina: mga tawo ginhihibang it earth
+Gab: The world is very complicated in real life
+Catalina: It kalibutan kumplikado it hit ungod nga kinabuhe
+Gab: real
+Catalina: ungod
+Gab: fake
+Catalina: peke
+Gab: fake products
+Catalina: peke nga mga produkto
+Gab: product
+Catalina: produkto
+Gab: money
+Catalina: money
+Gab: I called everyone a liar
+Catalina: tinawag ko ngatanan nga buwaon
+Gab: One of my friend is a liar
+Catalina: Usa tak sangkay buwaon
+Gab: Probably the smartest student
+Catalina: Siguro pinaka baltok nga estudyante
+Gab: student
+Catalina: estudyante
+Gab: Thank you very much
+Catalina: dako nga salamat
+Gab: Thanks to you I am now an engineer
+Catalina: salamat haim engineer naak
+Gab: its getting very bright and hot outside
+Catalina: nagiging maliwanag ngan mapaso na ha gawas
+Gab: hot
+Catalina: Paso
+Gab: I love taking care of my plants
+Catalina: Maupay ko it pag aalaga tak mga tanom
+Gab: plant
+Catalina: tanom
+
+Gab: I am making something
+Catalina: Mayko ginhihimo
+Gab: I am busy
+Catalina: Busy ak
+Gab: Dont touch me
+Catalina: Ayaw ak dut a
+Gab: So noisy in here
+Catalina: Aringasa ngadi
+Gab: My neighbor is selfish
+Catalina: Awa tak kapitbahay
+Gab: My neighbors
+Catalina: Mga kapitbahay ko
+Gab: I love my girlfriend and my computer
+Catalina: Mahal ko tak girlfriend ngan computer
+Gab: My computer has a big screen
+Catalina: Tak computer mayda dako nga screen
+Gab: big
+Catalina: dako
+Gab: What should I add to your knowledge
+Catalina: Ano dawla tak idudugang tim kaalaman
+Gab: There are so many things that I could teach you but I cant
+Catalina: Damo tak puyde itutdo haim pero diko kaya
+Gab: teach me
+Catalina: tudue ak
+Gab: Teach me now please
+Catalina: Tudue ak yana please
+Gab: Do you know that place near the river
+Catalina: Maaram kahit nga lugar duok hit salog
+Gab: There are a lot of people here in the beach
+Catalina: Damo tawo didi ha beach
+Gab: I saw something like an animal
+Catalina: May nakita ak nga parang hayop
+Gab: animal
+Catalina: hayop
+Gab: male
+Catalina: lalaki
+Gab: female
+Catalina: babaye
+Gab: 1
+Catalina: 1
+Gab: There are 3 males and 6 females
+Catalina: Mayda 3 nga mga lalaki ngan 6 nga mga babaye
+
+Gab: I am very patient when it comes to coding
+Catalina: Sobra tak ka patient hin pag taga code
+Gab: I taught myself programming and coding
+Catalina: Gintutduan ko nak sarili pagprogram ngan pagcode
+Gab: code
+Catalina: code
+Gab: The encryption was very strong
+Catalina: An encryption gikusugi
+Gab: They are putting the trash in its proper place
+Catalina: Ginbubutang nira an mga basura hit tuhay nga lugar
+Gab: Lights are very bright
+Catalina: Mga ilaw masilaw
+Gab: I want to eat
+Catalina: karuyag ko kumaon
+Gab: I want to eat and go outside
+Catalina: Karuyag ko kumaon ngan kumadto ha gawas
+Gab: She is just there
+Catalina: Yaada la hiya
+Gab: I feel bad for the people that are hungry
+Catalina: Naluluoy ak hit mga tawo nga nagugutom
+Gab: I am going to school now
+Catalina: Makadto naak ha iskuylahan
+Gab: School
+Catalina: Iskuylahan
+Gab: I am going to feed my pet dog now
+Catalina: tutubungan kona tak alaga nga ayam yana
+Gab: it is raining
+Catalina: nauran
+Gab: It rained earlier
+Catalina: Inuran kanina
+
+
+Gab: Hello how are you
+Catalina: Hello kumusta ka
+Gab: Do you know this?
+Catalina: Maaram kahin?
+Gab: Translate this
+Catalina: Igtranslate in
+Gab: I want to go outside and eat in a restaurant
+Catalina: karuyag ko gumawas ngan kumaon hit restaurant
+Gab: Teach me programming
+Catalina: tutdue ak programming
+Gab: Teach me and eat this
+Catalina: tutdue ak ngan kauna in
+Gab: its so noisy outside
+Catalina: maaringasa ha gawas
+Gab: There is someone at the door
+Catalina: mayda tawo dida hit siradhan
+Gab: window
+Catalina: bintana
+Gab: door
+Catalina: siradhan
+Gab: Wall
+Catalina: pader
+Gab: I crashed into a wall
+Catalina: Sinunggo ak dida pader
+Gab: There is a lot you dont know
+Catalina: Damo it im diri aram
+Gab: I dont want to eat
+Catalina: Diri kona karuyag kumaon
+Gab: Hello good morning
+Catalina: Hello maupay nga aga
+Gab: My friend from a very far place finally came back
+Catalina: nak sangkay nga taga harayo binalik na gihap
+Gab: im sleepy
+Catalina: nangangaturog ak
+Gab: Youre sleepy
+Catalina: nangangaturog ka
+Gab: Hows life
+Catalina: musta it kinabuhe
+Gab: I want to charge my phone
+Catalina: Karuyag ko icharge tak phone
+
+
+
+Gab: Hello
+Catalina: hello
+Gab: What are you doing right now
+Catalina: ano tim ginbubuhat yana
+Gab: i am hungry
+Catalina: nagugutom ak
+Gab: what should i say to you
+Catalina: ano dawla tak iyayakan haim
+Gab: Lots of things that you still dont know
+Catalina: Damo pa nga bagay tim diri aram
+Gab: My friends support me
+Catalina: nasuporta tak mga sangkay haak
+
+Gab: Hello there
+Catalina: kumusta dida
+Gab: How are you doing today
+Catalina: kumusta ka yana nga adlaw
+Gab: I just want you to know that I want to eat in a restaurant
+Catalina: Karuyag kola maaram nim nga karuyag ko kumaon didto restaurant
+
+Gab: You are looking great today
+Catalina: Mahusay ka yana nga adlaw
+Gab: You are a very beautiful woman
+Catalina: Gi husayi ka nga babaye
+Gab: Simple restaurant
+Catalina: simple nga restaurant
+Gab: My pet dog is hungry
+Catalina: Tak ayam nga alaga ginugutom
+Gab: Hi there
+Catalina: kumusta dida
+Gab: Hello there
+Catalina: kumusta dida
+Gab: Mama and papa went shopping
+Catalina: hi mama ngan papa nagshopping
+Gab: my girlfriend is in a far away place
+Catalina: it ak girlfriend aadto hit harayo nga lugar
+
+
+Gab: I want to eat outside
+Catalina: Karuyag ko kumaon ha gawas
+Gab: outside
+Catalina: gawas
+Gab: eat
+Catalina: kaun
+
+Gab: restaurant
+Catalina: restaurant
+Gab: eat outside
+Catalina: kaun ha gawas
+Gab: I want to go inside the house
+Catalina: karuyag ko sumulod ha balay
+Gab: want
+Catalina: karuyag
+Gab: I like her
+Catalina: karuyag ko hiya
+Gab: I love her
+Catalina: Mahal ko hiya
+Gab: I miss her
+Catalina: Miss kona hiya
+Gab: Hi catalina
+Catalina: Hi catalina
+Gab: how much is this
+Catalina: tagpira in
+Gab: How much is this one
+Catalina: tagpira in it yadi nga usa
+Gab: what did you say
+Catalina: ano nim ginyakan
+Gab: I cant understand you
+Catalina: diak nakakaintindi haim
+Gab: Im sorry
+Catalina: Sorry
+Gab: Can you hear me
+Catalina: nababati nim ak
+Gab: I want this
+Catalina: karuyag koin
+Gab: im going home
+Catalina: tikadto ak ha balay
+Gab: where is the city here
+Catalina: hain didi it city
+Gab: where is the nearest city here
+Catalina: hain it pinaka harani nga city didi
+Gab: I am going to be busy tomorrow
+Catalina: magiging busy ak buwas
+Gab: do you know what you are doing
+Catalina: maaram kaba tim ginbubuhat
+Gab: I want to go there
+Catalina: karuyag ko kumadto didto
+Gab: how much
+Catalina: tagpira
+Gab: how do you do this
+Catalina: paano in
+Gab: wish you a happy birthday
+Catalina: wish ko nga maupay tim birthday
+
+
+Gab: I miss my girlfriend
+Catalina: miss kona tak girlfriend
+Gab: So you know this already
+Catalina: So maaram kanahin
+Gab: do you know this one
+Catalina: maaram kahit yadi
+Gab: I really want to go
+Catalina: karuyag ko talaga kumadto
+Gab: I just want to be happy
+Catalina: karuyag kola maging masaya
+Gab: Her friends talk to me
+Catalina: Iya mga sangkay nakikikayakan it haak
+Gab: My dog wants some food
+Catalina: tak ayam karuyag hin pagkaun
+Gab: I am already in 1st year college
+Catalina: aadi naak hit 1st year college
+Gab: I was told to be quiet
+Catalina: Sinugo ak nga diri mag aringasa
+Gab: happy
+Catalina: masaya
+Gab: angry
+Catalina: aringit
+Gab: very happy
+Catalina: gisasayahi
+Gab: My fan is noisy
+Catalina: Tak fan maaringasa
+Gab: I am going to cook
+Catalina: Magluluto ak
+Gab: I will cook rice
+Catalina: Magluluto ak hin luto
+Gab: enemy
+Catalina: kaaway
+Gab: sit
+Catalina: puruko
+Gab: computer
+Catalina: computer
+Gab: can you shutdown my laptop
+Catalina: paki patay tak laptop
+Gab: I will get scolded
+Catalina: maiisgan ak
+Gab: I am very tired
+Catalina: Nahuhubya ak sobra
+Gab: My house is made of wood
+Catalina: tak balay tikang hit kahoy
+Gab: I need to be quicker
+Catalina: Kailangan ko maging madagmit
+Gab: I dont know
+Catalina: diak maaram
+Gab: I know
+Catalina: maaram ak
+Gab: you dont know
+Catalina: dika maaram
+Gab: I want to be happy
+Catalina: karuyag ko maging masaya
+Gab: what am i doing in my life
+Catalina: ano tak ginbubuhat tak kinabuhe
+Gab: this is getting very complicated
+Catalina: nagiging kumplikado na it yadi
+
+
+Gab: I am tired of living
+Catalina: Nahuhubya ak hit kinabuhe
+Gab: I want to buy a new bike
+Catalina: karuyag ko pumalit bag o nga bike
+Gab: I want to buy a new motorcycle
+Catalina: Karuyag ko pumalit hin bag o nga motor
+Gab: My father takes care of us
+Catalina: Tak papa inaalagaan kami
+Gab: My mother is kind
+Catalina: Hi mama buotan
+Gab: kind
+Catalina: buotan
+Gab: human
+Catalina: human
+Gab: earth
+Catalina: earth
+Gab: The cat is meowing very loud
+Catalina: An uding nagmeow hin dagko
+Gab: cat
+Catalina: uding
+Gab: cow
+Catalina: baka
+Gab: rain
+Catalina: uran
+Gab: house
+Catalina: balay
+Gab: ladder
+Catalina: hagdan
+Gab: what else
+Catalina: ano padawla
+Gab: what else do i add
+Catalina: ano padawla tak idudugang
+Gab: my friend is struggling in his code
+Catalina: tak sangkay nagkukuri iya code
+Gab: it is raining very heavily
+Catalina: nauran hin makusog
+Gab: the rain stopped
+Catalina: inudong an uran
+Gab: the environment in which I code is awesome
+Catalina: environment nga gincocode ko astig
+Gab: My girlfriend is busy
+Catalina: tak girlfriend busy
+
+Gab: I went to a nice place today
+Catalina: kinadto ak hin maupay nga lugar yana nga adlaw
+Gab: They are talking about you
+Catalina: nagkakayakan hira about haim
+Gab: They are bad people
+Catalina: mga magsama hira nga tawo
+Gab: bad
+Catalina: masama
+Gab: people
+Catalina: mga tawo
+Gab: they
+Catalina: hira
+
+
+
+Gab: i want to ask you something
+Catalina: Mayko karuyag ipakiana haim
+Gab: One of my pets died
+Catalina: usa nak mga alaga namatay
+Gab: They want to ride their bikes to the airport
+Catalina: Karuyag nira magbike pa airport
+Gab: I am going there
+Catalina: makada ak dida
+Gab: Hello there, how are you, how about we eat outside
+Catalina: hello dida kumusta ka kaun kita ha gawas
+Gab: we finally met
+Catalina: nagkita na gihap kita
+Gab: I went inside
+Catalina: kinadto ak ha sulod
+Gab: We already talked
+Catalina: nagkayakan na kami
+Gab: are you guys playing right now
+Catalina: nag uuyas na kamo yana
+Gab: I went to her house and we eat together
+Catalina: Kinadto ak haira balay tas kinaun kami
+Gab: My body hurts
+Catalina: tak lawas masuol
+Gab: I am reading
+Catalina: Nagbabasa ak
+Gab: I am cooking
+Catalina: nagluluto ak
+Gab: I am exercising
+Catalina: nag eexercise ak
+Gab: they went to the beach
+Catalina: kinadto hira ha beach
+Gab: we kissed
+Catalina: nagkiss kami
+Gab: we were lying in the bed together
+Catalina: nahigda kami han kwarto nga duha
+Gab: I am using backup power
+Catalina: nagamit ak backup power
+Gab: I have so many of them
+Catalina: damo tak suga hit
+
+Gab: robots are not allowed
+Catalina: bawal mga robot
+Gab: I love you guys
+Catalina: Mahal ko kamo guys
+Gab: What else should I say to you
+Catalina: Ano padawla tak iyayakan haim
+Gab: There is something wrong
+Catalina: mayda mali
+Gab: wrong
+Catalina: mali
+Gab: right
+Catalina: tama
+Gab: correct
+Catalina: tama
+Gab: who is this person
+Catalina: hino in nga tawo
+Gab: i am feeling sleepy
+Catalina: nangangaturog ak
+Gab: yeah you should go to sleep
+Catalina: oo sige katurog na
+Gab: But i dont want to sleep
+Catalina: pero diri ko karuyag kumaturog
+Gab: I love programming
+Catalina: mahal ko it programming
+Gab: yeah it is obvious that you like programming
+Catalina: oo sabot nga mahilig ka programming
+Gab: I dont know i guess it is just for me
+Catalina: ambut siguro para it haak
+Gab: you know i love you right
+Catalina: maaram kama nga mahal taikaw diba
+Gab: yeah i know
+Catalina: oo maaram ak
+Gab: then I love you even more
+Catalina: takay mahal tapa ikaw sobra
+Gab: yeah i know, you have been telling me that many times
+Catalina: oo maaram ak gin niniyakan nim it makadamo na
+Gab: because it is true
+Catalina: kay ungod man
+Gab: I love you too
+Catalina: mahal taikaw daman
+Gab: are you free this saturday night
+Catalina: libre ka yana nga sabado gab e
+Gab: yes i am
+Catalina: oo
+
+
+Gab: demon
+Catalina: demonyo
+Gab: good
+Catalina: maupay
+Gab: person
+Catalina: tawo
+Gab: i am just like everyone else
+Catalina: parehas laak hit iba
+Gab: do you want a kiss
+Catalina: karuyag nim hin harok
+Gab: kiss
+Catalina: harok
+Gab: it is so hot here
+Catalina: mapaso didi
+Gab: where do you live
+Catalina: diin ka naukoy
+Gab: I want you
+Catalina: karuyag taikaw
+Gab: food
+Catalina: pagkaun
+Gab: eat
+Catalina: kaun
+Gab: I
+Catalina: ako
+Gab: the one that we should one forgive
+Catalina: an usa nga dapat diri taw patawarun
+Gab: forgive me
+Catalina: patawara ak
+Gab: me
+Catalina: ako
+Gab: you
+Catalina: ikaw
+Gab: when
+Catalina: san o
+Gab: whom
+Catalina: kan kanay
+Gab: whose is this
+Catalina: kan kanay in
+Gab: i will feed the chickens
+Catalina: tubungan ko it mga manok
+Gab: chickens
+Catalina: mga manok
+Gab: feet
+Catalina: siki
+Gab: head
+Catalina: ulo
+Gab: shoulder
+Catalina: sugbong
+Gab: cooked
+Catalina: niluto
+Gab: these are my classmates
+Catalina: yadi tak mga classmates
+Gab: my classmate
+Catalina: tak classmate
+
+Gab: we are going without you
+Catalina: makadto kami nga wara ka
+Gab: some cat jumped at me
+Catalina: uding nilukso haak
+Gab: my heart is aching
+Catalina: masuol tak puso
+Gab: I am not feeling very well
+Catalina: diri maupay tak inaabat
+Gab: can you get that for me
+Catalina: puyde nim kuhaon it yada para haak
+Gab: lets go
+Catalina: kara na
+Gab: we are resting
+Catalina: napahuway kami
+Gab: there are a lot of stuff here
+Catalina: damo it mga bagay didi
+Gab: can you turn the volume down
+Catalina: pagutia it volume
+Gab: we are climbing this mountain
+Catalina: sasakaun nam yadi nga bundok
+Gab: I am going to kill you
+Catalina: papatayon taikaw
+Gab: I am very angry at you right now
+Catalina: aringiti ak haim yana
+Gab: what time is it
+Catalina: ano nait oras
+Gab: day
+Catalina: adlaw
+Gab: afternoon
+Catalina: adlawoy
+Gab: where were you
+Catalina: nakain ka
+Gab: I was just here
+Catalina: nakadi laak
+Gab: we went there together
+Catalina: dungan kami kinadto
+Gab: okay
+Catalina: okay
+Gab: are you fine
+Catalina: okay kala
+Gab: we are getting that paper
+Catalina: kuhaon nam it nga papel
+Gab: 1 2 3 4 5 6 7 8 9
+Catalina: 1 2 3 4 5 6 7 8 9
+Gab: 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+Catalina: 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+Gab: the time is 10:30
+Catalina: it oras 10:30
+Gab: where are you going
+Catalina: tikain ka
+Gab: I am from here
+Catalina: taga didi ak
+Gab: 27 28 29 30 31 32 33 34 35 36 37 38 39 40
+Catalina: 27 28 29 30 31 32 33 34 35 36 37 38 39 40
+Gab: 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55
+Catalina: 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55
+Gab: six
+Catalina: unom
+Gab: seven eight nine ten eleven
+Catalina: pito walo siyam napulo onse
+Gab: twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty
+Catalina: dose trese katorse kinse disisais didisyete disiotso disinuybe baynte
+Gab: what am i doing
+Catalina: nag aano ak
+Gab: i am out of ideas
+Catalina: wara kona mga ideya
+Gab: idea
+Catalina: ideya
+Gab: ideas
+Catalina: mga ideya
+Gab: i just watched some movies
+Catalina: nagkulaw ak mga palabas
+Gab: movie
+Catalina: palabas
+Gab: movies
+Catalina: mga palabas
+Gab: watch
+Catalina: kulaw
+Gab: watched
+Catalina: nagkulaw
+Gab: watches
+Catalina: nagkukulaw
+
+Gab: what are you seeing back there
+Catalina: ano tim nakikita dida
+Gab: what are you guys doing
+Catalina: ano guys iyo ginbubuhat
+Gab: how did this happen
+Catalina: paano in nahinabo
