@@ -197,6 +197,21 @@ class DecoderBlock(nn.Module):
         x = self.residual_conns[1](x, lambda x: self.cross_attention(x, encoder_output, encoder_output, src_mask))
         x = self.residual_conns[2](x, self.feed_forward)
         return x
+    
+class DecoderOnlyBlock(nn.Module):
+    def __init__(self, self_attention: MultiHeadBlock, cross_attention: MultiHeadBlock, feed_forward_block, dropout):
+        super().__init__()
+
+        self.self_attention = self_attention
+        self.cross_attention = cross_attention
+        self.feed_forward = feed_forward_block
+
+        self.residual_conns = nn.ModuleList([ResidualConn(dropout) for _ in range(3)])
+
+    def forward(self, x, trgt_mask):
+        x = self.residual_conns[0](x, lambda x: self.self_attention(x, x, x, trgt_mask))
+        x = self.residual_conns[2](x, self.feed_forward)
+        return x
 
 
 class Decoder(nn.Module):
@@ -209,6 +224,18 @@ class Decoder(nn.Module):
     def forward(self, x, encoder_out, src_mask, trgt_mask):
         for layer in self.layers:
             x = layer(x, encoder_out, src_mask, trgt_mask)
+        return self.norm(x)
+    
+class DecoderOnly(nn.Module):
+    def __init__(self, layers: nn.ModuleList):
+        super().__init__()
+
+        self.layers = layers
+        self.norm = LayerNormalization()
+
+    def forward(self, x, mask):
+        for layer in self.layers:
+            x = layer(x, mask)
         return self.norm(x)
 
 
@@ -270,6 +297,61 @@ class TransformerEncoderOnly(nn.Module):
 
     def project(self, x):
         return self.proj(x)
+    
+class TransformerDecoderOnly(nn.Module):
+    def __init__(self, decoder, embed, pos, projection):
+        super().__init__()
+        self.decoder = decoder
+        self.embed = embed
+        self.pos = pos
+        self.proj = projection
+
+    def forward(self, x, mask):
+        x = self.embed(x)
+        x = self.pos(x)
+        x = self.decoder(x, mask)
+        return self.proj(x)
+
+def build_transformer_next_token(
+    vocab_size,
+    seq_len,
+    d_model=512,
+    n_layers=6,
+    n_heads=8,
+    dropout=0.1,
+    dff=2048,
+    device=None
+):
+    embed = InputEmbedding(d_model, vocab_size)
+    pos = PositionalEncoding(d_model, seq_len, dropout, device=device)
+
+    decoder_blocks = []
+    for _ in range(n_layers):
+        self_attn = MultiHeadBlock(d_model, n_heads, dropout)
+        ff = FeedForwardNet(d_model, dff, dropout)
+        decoder_blocks.append(
+            DecoderOnlyBlock(self_attn, self_attn, ff, dropout)
+        )
+
+    # decoder_blocks = []
+    # for _ in range(n_layers):
+    #     decoder_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout)
+    #     cross_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout)
+    #     feed_f_block = FeedForwardNet(d_model, dff, dropout)
+    #     decoder_block = DecoderBlock(decoder_self_attention_block, cross_self_attention_block, feed_f_block, dropout)
+    #     decoder_blocks.append(decoder_block)
+
+    decoder = DecoderOnly(nn.ModuleList(decoder_blocks))
+    projection = ProjectionLayer(d_model, vocab_size)
+
+    model = TransformerDecoderOnly(decoder, embed, pos, projection)
+
+    for p in model.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform_(p)
+
+    return model
+
 
 
 def build_transformer_encoder(src_vocab_size, trgt_vocab_size, src_seq_length, d_model=512, n_layers=6,
