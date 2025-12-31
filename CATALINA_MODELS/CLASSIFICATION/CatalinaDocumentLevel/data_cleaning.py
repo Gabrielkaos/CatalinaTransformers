@@ -3,13 +3,6 @@ from unidecode import unidecode
 from datasets import load_dataset
 from collections import OrderedDict
 
-
-# def add(prompt, mode):
-#     with open("/CatalinaCentralCommand/mode_selection_data.txt", "a") as f:
-#         f.writelines(f"\n{prompt}--->{mode}")
-
-
-
 def get_unique(list1):
     unique = OrderedDict()
 
@@ -57,38 +50,38 @@ def get_dialogue_data_for_transformer(max_seq_src, max_seq_trgt):
         gabs.append(inputs)
         cats.append(outputs)
 
-    with open("extradata/adv.txt", "r") as f:
-        rows = f.readlines()
+    # with open("extradata/adv.txt", "r") as f:
+    #     rows = f.readlines()
 
-        for row in rows:
-            inputs = remove_special(unidecode(row.strip().lower())).split()
-            outputs = ["advance"]
-
-
-            gabs.append(inputs)
-            cats.append(outputs)
-
-    with open("extradata/ele.txt", "r") as f1:
-        rows = f1.readlines()
-
-        for row in rows:
-            inputs = remove_special(unidecode(row.strip().lower())).split()
-            outputs = ["elementary"]
+    #     for row in rows:
+    #         inputs = remove_special(unidecode(row.strip().lower())).split()
+    #         outputs = ["advance"]
 
 
-            gabs.append(inputs)
-            cats.append(outputs)
+    #         gabs.append(inputs)
+    #         cats.append(outputs)
 
-    with open("extradata/intermediate.txt", "r") as f2:
-        rows = f2.readlines()
+    # with open("extradata/ele.txt", "r") as f1:
+    #     rows = f1.readlines()
 
-        for row in rows:
-            inputs = remove_special(unidecode(row.strip().lower())).split()
-            outputs = ["intermediate"]
+    #     for row in rows:
+    #         inputs = remove_special(unidecode(row.strip().lower())).split()
+    #         outputs = ["elementary"]
 
 
-            gabs.append(inputs)
-            cats.append(outputs)
+    #         gabs.append(inputs)
+    #         cats.append(outputs)
+
+    # with open("extradata/intermediate.txt", "r") as f2:
+    #     rows = f2.readlines()
+
+    #     for row in rows:
+    #         inputs = remove_special(unidecode(row.strip().lower())).split()
+    #         outputs = ["intermediate"]
+
+
+    #         gabs.append(inputs)
+    #         cats.append(outputs)
 
     #
     # print(longest)

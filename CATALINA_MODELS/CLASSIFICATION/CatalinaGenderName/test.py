@@ -42,13 +42,13 @@ def test():
     batch_size = 400
     max_seq_src = 27
 
-    data = torch.load("data.pth")
+    data = torch.load("test_data.pth")
     src_vocab = data["src_vocab"]
     trgt_vocab = data["trgt_vocab"]
     print("Data processed")
 
     model = build_transformer_encoder(len(src_vocab), len(trgt_vocab), max_seq_src, device=device).to(device)
-    model.load_state_dict(torch.load("brain.pth")["model_state"])
+    model.load_state_dict(torch.load("saved_from_loss/3-0.6749.pth")["model_state"])
     model.eval()
 
     test_data = torch.load("test_data.pth")

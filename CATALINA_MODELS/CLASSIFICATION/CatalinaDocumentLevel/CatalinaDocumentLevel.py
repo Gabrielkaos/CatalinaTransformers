@@ -17,6 +17,7 @@ def count_parameters(model1):
 
 def main():
 
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device={device}")
 
@@ -37,7 +38,7 @@ def main():
     # x, y, label, src_vocab, trgt_vocab, tokenizer_src, tokenizer_trgt = get_dialogue_data_for_transformer(max_seq_length)
     model = build_transformer_encoder(len(src_vocab), len(trgt_vocab), max_seq_src,device=device).to(device)
     print(count_parameters(model))
-    model.load_state_dict(torch.load("brain.pth")["model_state"])
+    model.load_state_dict(torch.load("saved_from_loss/3-0.6426.pth",map_location=torch.device(device))["model_state"])
     model.eval()
 
     with torch.no_grad():

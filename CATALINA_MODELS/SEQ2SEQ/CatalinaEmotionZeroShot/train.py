@@ -82,7 +82,7 @@ def train():
     train_loader = DataLoader(TransformerData(x, y, label, tokenizer_src), batch_size=batch_size, shuffle=True)
 
     model = build_transformer(len(src_vocab), len(trgt_vocab), max_seq_src, max_seq_trgt,device=device).to(device)
-    model.load_state_dict(torch.load("brain.pth")["model_state"])
+    # model.load_state_dict(torch.load("brain.pth")["model_state"])
     model.train()
 
     # optimizer and criterion

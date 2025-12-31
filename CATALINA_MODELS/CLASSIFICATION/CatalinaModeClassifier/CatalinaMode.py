@@ -30,7 +30,7 @@ def main():
     print(len(data["x"]))
     # x, y, label, src_vocab, trgt_vocab, tokenizer_src, tokenizer_trgt = get_dialogue_data_for_transformer(max_seq_length)
     model = build_transformer_encoder(len(src_vocab), len(trgt_vocab), max_seq_src, device=device).to(device)
-    model.load_state_dict(torch.load("brain.pth")["model_state"])
+    model.load_state_dict(torch.load("saved_from_loss/9-0.5888.pth",map_location=torch.device(device))["model_state"])
     model.eval()
 
     with torch.no_grad():

@@ -64,8 +64,6 @@ def train():
     trgt_vocab = data["trgt_vocab"]
     tokenizer_src = data["tokenizer_src"]
 
-    print(src_vocab)
-
     print(f"x={len(x)}")
     print(f"y={len(y)}")
     print(f"src_vocab={len(src_vocab)}")

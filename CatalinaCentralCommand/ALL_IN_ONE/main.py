@@ -150,6 +150,7 @@ def decode_category(label, categories):
 class Catalina:
     def __init__(self, device=None, broken=None):
         print("Initializing Catalina...")
+        self.device=device
         if device is None:
             device = torch.device("cuda")
 
@@ -169,6 +170,7 @@ class Catalina:
         }
 
         self.models_dict = {
+            
             "paraphrase": {},
             "conversational": {},
             "translate": {
@@ -207,19 +209,19 @@ class Catalina:
             "language_detector": (70, 2)
         }
         self.total_params = 0
-        self.load_models_classifier(device=device)
-        self.load_models(device=device)
+        self.load_models_classifier()
+        self.load_models()
 
         print(f"Catalina Initialized Total Parameters: {(self.total_params / 1_000_000_000):.2f} Billion(s)\n\n")
 
         # mode
         self.mode = None
 
-    def load_models_classifier(self, device=None):
-        if device is None:
-            device = torch.device("cuda")
+    def load_models_classifier(self):
+        device = self.device
 
         for key in self.models_dict_classifiers.keys():
+            if key in self.broken:continue
             data = torch.load(f"DIRS/{key}/data.pth")
 
             src_vocab = data["src_vocab"]
@@ -246,9 +248,8 @@ class Catalina:
 
         # print(f"Catalina Initialized Total Parameters: {(self.total_params/1_000_000_000):.2f} Billion(s)\n\n")
 
-    def load_models(self, device=None):
-        if device is None:
-            device = torch.device("cuda")
+    def load_models(self):
+        device = self.device
 
         for key in self.models_dict.keys():
             if key in self.broken:continue
@@ -322,10 +323,9 @@ class Catalina:
 
         # print(f"Catalina Initialized Total Parameters: {(self.total_params / 1_000_000_000):.2f} Billion(s)\n\n")
 
-    def get_system_mode(self, system_mode, device=None):
+    def get_system_mode(self, system_mode):
 
-        if device is None:
-            device = torch.device("cuda")
+        device=self.device
 
         mode_of_model = self.models_dict_classifiers["mode"]
 
@@ -346,8 +346,8 @@ class Catalina:
 
             self.mode = decode_category(predicted_label, categories).lower()
 
-    def get_response(self, input_text, device=None):
-        if device is None: device = torch.device("cuda")
+    def get_response(self, input_text):
+        device = self.device
 
         if self.mode in self.broken:return f"Sorry '{self.mode}' model is currently unusable."
 
@@ -472,8 +472,8 @@ class Catalina:
 
                 return decode_category(predicted_label, categories)
 
-    def _get_language(self, input_text, device=None):
-        if device is None: device = torch.device("cuda")
+    def _get_language(self, input_text):
+        device = self.device
 
         mode_of_model = self.models_dict_classifiers["language_detector"]
 
@@ -503,7 +503,7 @@ class Catalina:
 if __name__ == "__main__":
     warnings.filterwarnings("ignore")
 
-    catalina = Catalina(broken=["conversational","paraphrase"])
+    catalina = Catalina(broken=["conversational","paraphrase","translate","language_detector","aihumantext"],device="cpu")
 
     while True:
         system_input = input("System input:")

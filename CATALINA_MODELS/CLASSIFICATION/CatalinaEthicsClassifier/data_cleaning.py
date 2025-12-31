@@ -46,12 +46,12 @@ def remove_special(line: str):
 
 def get_dialogue_data_for_transformer(max_seq_src, max_seq_trgt):
     print("\nFetching Dataset Conversational...")
-    dataset_justice = load_dataset("metaeval/ethics","justice",split='train')
-    dataset_justice1 = load_dataset("metaeval/ethics","justice",split='test')
-    dataset_justice2 = load_dataset("metaeval/ethics","justice",split='validation')
-    dataset_commonsense = load_dataset("metaeval/ethics","commonsense",split='train')
-    dataset_commonsense1 = load_dataset("metaeval/ethics","commonsense",split='test')
-    dataset_commonsense2 = load_dataset("metaeval/ethics","commonsense",split='validation')
+    dataset_justice = load_dataset("hendrycks/ethics","justice",split='train')
+    dataset_justice1 = load_dataset("hendrycks/ethics","justice",split='test')
+    dataset_justice2 = load_dataset("hendrycks/ethics","justice",split='validation')
+    dataset_commonsense = load_dataset("hendrycks/ethics","commonsense",split='train')
+    dataset_commonsense1 = load_dataset("hendrycks/ethics","commonsense",split='test')
+    dataset_commonsense2 = load_dataset("hendrycks/ethics","commonsense",split='validation')
 
     # holder for convo
     gabs = []
@@ -63,7 +63,8 @@ def get_dialogue_data_for_transformer(max_seq_src, max_seq_trgt):
 
     print("Processing dataset...")
     for data in dataset_justice:
-        inputs = unidecode(remove_special(data["text"].lower())).split()
+        print(data)
+        inputs = unidecode(remove_special(data["scenario"].lower())).split()
         outputs = label_map[data["label"]].split()
 
         inputs.append("<t>")
@@ -81,7 +82,7 @@ def get_dialogue_data_for_transformer(max_seq_src, max_seq_trgt):
         cats.append(outputs)
 
     for data in dataset_justice1:
-        inputs = unidecode(remove_special(data["text"].lower())).split()
+        inputs = unidecode(remove_special(data["scenario"].lower())).split()
         outputs = label_map[data["label"]].split()
 
         inputs.append("<t>")
@@ -99,7 +100,7 @@ def get_dialogue_data_for_transformer(max_seq_src, max_seq_trgt):
         cats.append(outputs)
 
     for data in dataset_justice2:
-        inputs = unidecode(remove_special(data["text"].lower())).split()
+        inputs = unidecode(remove_special(data["scenario"].lower())).split()
         outputs = label_map[data["label"]].split()
 
         inputs.append("<t>")
@@ -117,7 +118,7 @@ def get_dialogue_data_for_transformer(max_seq_src, max_seq_trgt):
 
 
     for data in dataset_commonsense:
-        inputs = unidecode(remove_special(data["text"].lower())).split()
+        inputs = unidecode(remove_special(data["input"].lower())).split()
         outputs = label_map[data["label"]].split()
 
         inputs.append("<t>")
@@ -134,7 +135,7 @@ def get_dialogue_data_for_transformer(max_seq_src, max_seq_trgt):
         cats.append(outputs)
 
     for data in dataset_commonsense1:
-        inputs = unidecode(remove_special(data["text"].lower())).split()
+        inputs = unidecode(remove_special(data["input"].lower())).split()
         outputs = label_map[data["label"]].split()
 
         inputs.append("<t>")
@@ -151,7 +152,7 @@ def get_dialogue_data_for_transformer(max_seq_src, max_seq_trgt):
         cats.append(outputs)
 
     for data in dataset_commonsense2:
-        inputs = unidecode(remove_special(data["text"].lower())).split()
+        inputs = unidecode(remove_special(data["input"].lower())).split()
         outputs = label_map[data["label"]].split()
 
         inputs.append("<t>")

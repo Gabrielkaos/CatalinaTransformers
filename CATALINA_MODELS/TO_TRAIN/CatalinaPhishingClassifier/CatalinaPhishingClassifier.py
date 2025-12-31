@@ -28,7 +28,7 @@ def main():
     print("Data processed")
 
     model = build_transformer_encoder(len(src_vocab), len(trgt_vocab), max_seq_src, device=device).to(device)
-    model.load_state_dict(torch.load("brain.pth")["model_state"])
+    model.load_state_dict(torch.load("saved_from_loss/1-0.5972.pth",map_location=torch.device(device))["model_state"])
     model.eval()
     print(count_parameters(model))
 

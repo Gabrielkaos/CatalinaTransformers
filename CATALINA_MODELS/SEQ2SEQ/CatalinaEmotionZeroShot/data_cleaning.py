@@ -75,9 +75,9 @@ def get_dialogue_data_for_transformer(max_seq_src, max_seq_trgt):
             if labeled==1:ones.append(value)
 
         # longest_output = max(len(inputs),longest_output)
-        if len(ones)>1:
-            print(inputs)
-            print(ones)
+        # if len(ones)>1:
+        #     print(inputs)
+        #     print(ones)
 
 
         if len(ones)==0:
