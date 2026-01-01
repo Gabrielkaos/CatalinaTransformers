@@ -165,15 +165,15 @@ class MultiHeadBlock(nn.Module):
         # Use Flash Attention if available (PyTorch 2.0+)
         if self.use_flash_attn:
             # Convert mask format for scaled_dot_product_attention
-            attn_mask = None
-            if mask is not None:
-                attn_mask = mask.bool() if mask.dtype != torch.bool else mask
+            # attn_mask = None
+            # if mask is not None:
+            #     attn_mask = mask.bool() if mask.dtype != torch.bool else mask
             
             x = torch.nn.functional.scaled_dot_product_attention(
                 query, key, value, 
-                attn_mask=attn_mask,
+                attn_mask=None,
                 dropout_p=self.dropout.p if self.training else 0.0,
-                is_causal=False  # We provide our own mask
+                is_causal=True  # We provide our own mask
             )
         else:
             # Fallback to manual attention

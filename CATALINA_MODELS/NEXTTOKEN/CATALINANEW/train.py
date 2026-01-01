@@ -58,8 +58,6 @@ def train():
             x = batch["input"].to(device)
             y = batch["label"].to(device)
 
-            print(x.shape,y.shape)
-            print(x,y)
 
             mask = causal_mask(x.size(1)).to(device)
 
