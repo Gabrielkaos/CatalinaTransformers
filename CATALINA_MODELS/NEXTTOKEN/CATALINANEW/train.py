@@ -2,7 +2,8 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from MODEL_TRANSFORMER.OLD import build_transformer_next_token
 import torch.nn as nn
-from torch.cuda.amp import autocast, GradScaler
+from torch.cuda.amp.autocast_mode import autocast
+from torch.cuda.amp.grad_scaler import GradScaler
 
 class LanguageModelDataset(Dataset):
     def __init__(self, sequences, pad_idx):
