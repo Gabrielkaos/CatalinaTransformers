@@ -102,7 +102,7 @@ class FeedForwardNet(nn.Module):
 
 
 class MultiHeadBlock(nn.Module):
-    def __init__(self, d_model, n_heads, dropout):
+    def __init__(self, d_model, n_heads, dropout, use_flash_attn=False):
         super().__init__()
 
         self.d_model = d_model
@@ -118,6 +118,9 @@ class MultiHeadBlock(nn.Module):
         self.w_v = nn.Linear(d_model, d_model)
 
         self.w_o = nn.Linear(d_model, d_model)
+
+        self.use_flash_attn = use_flash_attn and hasattr(torch.nn.functional, 'scaled_dot_product_attention')
+
 
     @staticmethod
     def attention(query, key, value, mask, dropout: nn.Dropout):
@@ -135,19 +138,48 @@ class MultiHeadBlock(nn.Module):
 
         return attention_scores @ value
 
+    # def forward(self, q, k, v, mask):
+    #     query = self.w_q(q)
+    #     key = self.w_k(k)
+    #     value = self.w_v(v)
+
+    #     query = query.view(query.shape[0], query.shape[1], self.n_heads, self.d_k).transpose(1, 2)
+    #     key = key.view(key.shape[0], key.shape[1], self.n_heads, self.d_k).transpose(1, 2)
+    #     value = value.view(value.shape[0], value.shape[1], self.n_heads, self.d_k).transpose(1, 2)
+
+    #     x = MultiHeadBlock.attention(query, key, value, mask, self.dropout)
+
+    #     x = x.transpose(1, 2).contiguous().view(x.shape[0], -1, self.n_heads * self.d_k)
+
+    #     return self.w_o(x)
+
     def forward(self, q, k, v, mask):
         query = self.w_q(q)
         key = self.w_k(k)
         value = self.w_v(v)
-
+        
         query = query.view(query.shape[0], query.shape[1], self.n_heads, self.d_k).transpose(1, 2)
         key = key.view(key.shape[0], key.shape[1], self.n_heads, self.d_k).transpose(1, 2)
         value = value.view(value.shape[0], value.shape[1], self.n_heads, self.d_k).transpose(1, 2)
-
-        x = MultiHeadBlock.attention(query, key, value, mask, self.dropout)
-
+        
+        # Use Flash Attention if available (PyTorch 2.0+)
+        if self.use_flash_attn:
+            # Convert mask format for scaled_dot_product_attention
+            attn_mask = None
+            if mask is not None:
+                attn_mask = mask.bool() if mask.dtype != torch.bool else mask
+            
+            x = torch.nn.functional.scaled_dot_product_attention(
+                query, key, value, 
+                attn_mask=attn_mask,
+                dropout_p=self.dropout.p if self.training else 0.0,
+                is_causal=False  # We provide our own mask
+            )
+        else:
+            # Fallback to manual attention
+            x = MultiHeadBlock.attention(query, key, value, mask, self.dropout)
+        
         x = x.transpose(1, 2).contiguous().view(x.shape[0], -1, self.n_heads * self.d_k)
-
         return self.w_o(x)
 
 
