@@ -315,6 +315,8 @@ class TransformerDecoderOnly(nn.Module):
         self.pos = pos
         self.proj = projection
 
+        self.proj.projection_layer.weight=self.embed.embedding.weight
+
     def forward(self, x, mask):
         x = self.embed(x)
         x = self.pos(x)
