@@ -199,11 +199,10 @@ class DecoderBlock(nn.Module):
         return x
     
 class DecoderOnlyBlock(nn.Module):
-    def __init__(self, self_attention: MultiHeadBlock, cross_attention: MultiHeadBlock, feed_forward_block, dropout):
+    def __init__(self, self_attention: MultiHeadBlock, feed_forward_block, dropout):
         super().__init__()
 
         self.self_attention = self_attention
-        self.cross_attention = cross_attention
         self.feed_forward = feed_forward_block
 
         self.residual_conns = nn.ModuleList([ResidualConn(dropout) for _ in range(3)])
@@ -330,7 +329,7 @@ def build_transformer_next_token(
         self_attn = MultiHeadBlock(d_model, n_heads, dropout)
         ff = FeedForwardNet(d_model, dff, dropout)
         decoder_blocks.append(
-            DecoderOnlyBlock(self_attn, self_attn, ff, dropout)
+            DecoderOnlyBlock(self_attn, ff, dropout)
         )
 
     # decoder_blocks = []

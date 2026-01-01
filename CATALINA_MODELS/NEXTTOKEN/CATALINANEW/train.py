@@ -77,7 +77,7 @@ def train():
             total_loss += loss.item()
 
         print(f"Epoch {epoch+1}: loss={total_loss/len(loader):.4f}")
-        torch.save({"model": model.state_dict()}, "lm.pth")
+        torch.save({"model_state": model.state_dict()}, "lm.pth")
 
 
 if __name__ == '__main__':
