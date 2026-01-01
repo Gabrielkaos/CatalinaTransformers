@@ -370,7 +370,7 @@ def build_transformer_next_token(
 
     decoder_blocks = []
     for _ in range(n_layers):
-        self_attn = MultiHeadBlock(d_model, n_heads, dropout)
+        self_attn = MultiHeadBlock(d_model, n_heads, dropout,use_flash_attn=True)
         ff = FeedForwardNet(d_model, dff, dropout,activation="gelu")
         decoder_blocks.append(
             DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False)
