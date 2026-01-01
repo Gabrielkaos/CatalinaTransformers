@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from MODEL_TRANSFORMER.OLD import build_transformer_next_token
 import torch.nn as nn
+from torch.cuda.amp import autocast, GradScaler
 
 class LanguageModelDataset(Dataset):
     def __init__(self, sequences, pad_idx):
@@ -50,6 +51,9 @@ def train():
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss(ignore_index=pad_idx)
 
+    scaler = GradScaler(device)
+
+
     model.train()
 
     for epoch in range(epochs):
@@ -61,16 +65,20 @@ def train():
 
             mask = causal_mask(x.size(1)).to(device)
 
-            logits = model(x, mask)
-
-            loss = criterion(
-                logits.view(-1, len(vocab)),
-                y.view(-1)
-            )
-
             optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+
+            with autocast(device):
+                logits = model(x, mask)
+                loss = criterion(
+                    logits.view(-1, len(vocab)),
+                    y.view(-1)
+                )
+
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            scaler.step(optimizer)
+            scaler.update()
 
             total_loss += loss.item()
 
