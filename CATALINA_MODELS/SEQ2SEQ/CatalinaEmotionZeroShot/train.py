@@ -1,7 +1,7 @@
 import time
 import torch
 from torch.utils.data import DataLoader, Dataset
-from MODEL_TRANSFORMER import build_transformer
+from MODEL_TRANSFORMER.OLD import build_transformer
 import torch.nn as nn
 import warnings
 

@@ -1,6 +1,6 @@
 import torch
 from data_cleaning import split_string_with_special_characters
-from MODEL_TRANSFORMER import build_transformer_next_token
+from MODEL_TRANSFORMER.OLD import build_transformer_next_token
 
 def causal_mask(size):
     return torch.tril(torch.ones(size, size)).unsqueeze(0).int()

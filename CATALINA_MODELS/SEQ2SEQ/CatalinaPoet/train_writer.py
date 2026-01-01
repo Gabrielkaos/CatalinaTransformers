@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import unidecode
-from MODEL_TRANSFORMER import RNN
+from MODEL_TRANSFORMER.OLD import RNN
 import string
 from data_utils import char_tensor
 

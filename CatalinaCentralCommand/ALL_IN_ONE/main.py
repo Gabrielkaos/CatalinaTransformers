@@ -1,5 +1,5 @@
 import torch
-from MODEL_TRANSFORMER import build_transformer, RNN, build_transformer_encoder
+from MODEL_TRANSFORMER.OLD import build_transformer, RNN, build_transformer_encoder
 from unidecode import unidecode
 import warnings
 import string

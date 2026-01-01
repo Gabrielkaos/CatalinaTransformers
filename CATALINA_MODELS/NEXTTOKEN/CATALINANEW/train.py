@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
-from MODEL_TRANSFORMER import build_transformer_next_token
+from MODEL_TRANSFORMER.OLD import build_transformer_next_token
 import torch.nn as nn
 
 class LanguageModelDataset(Dataset):

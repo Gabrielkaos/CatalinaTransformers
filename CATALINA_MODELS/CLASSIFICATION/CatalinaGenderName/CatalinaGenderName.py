@@ -1,7 +1,7 @@
 import warnings
 import torch
 from data_cleaning import tokens_to_tensor
-from MODEL_TRANSFORMER import build_transformer_encoder
+from MODEL_TRANSFORMER.OLD import build_transformer_encoder
 from unidecode import unidecode
 
 

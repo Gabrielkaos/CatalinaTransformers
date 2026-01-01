@@ -3,7 +3,7 @@ import time
 import torch
 # from data_cleaning import get_dialogue_data_for_transformer
 from torch.utils.data import DataLoader, Dataset
-from MODEL_TRANSFORMER import build_transformer_encoder
+from MODEL_TRANSFORMER.OLD import build_transformer_encoder
 import torch.nn as nn
 import warnings
 
