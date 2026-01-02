@@ -17,7 +17,7 @@ def generate(model, tokenizer, prompt, max_len=50, device="cpu"):
 
     for _ in range(max_len):
 
-        x = x[:,-72:]
+        # x = x[:,-72:]
         mask = causal_mask(x.size(1)).to(device)
         with torch.no_grad():
             logits = model(x, mask)
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     model = build_transformer_next_token(
         vocab_size=len(vocab)
     ).to(device)
-    model.load_state_dict(torch.load("lm-17.pth",map_location=torch.device(device))["model_state"])
+    # model.load_state_dict(torch.load("lm-17.pth",map_location=torch.device(device))["model_state"])
     model.eval()
 
     print(generate(model,tokenizer,"We",max_len=100))

@@ -18,29 +18,49 @@ class InputEmbedding(nn.Module):
 
 
 def rotate_half(x):
-    x1, x2 = x[..., ::2], x[..., 1::2]
-    return torch.stack((-x2, x1), dim=-1).flatten(-2)
+    """Rotate half the hidden dims of the input."""
+    x1 = x[..., : x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2 :]
+    return torch.cat((-x2, x1), dim=-1)
 
 
 class RotaryEmbedding(nn.Module):
     def __init__(self, dim, max_seq_len=2048, base=10000):
         super().__init__()
-        self.dim = dim
+        assert dim % 2 == 0, "RoPE requires even dimension"
+
+        # Compute inverse frequencies
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
-
+        self.register_buffer("inv_freq", inv_freq)
+        
+        # Precompute for max_seq_len (optional optimization)
+        self._seq_len_cached = max_seq_len
         positions = torch.arange(max_seq_len).float()
-        freqs = torch.einsum("i,j->ij", positions, inv_freq)
-
-        self.register_buffer("cos", freqs.cos()[None, None, :, :])
-        self.register_buffer("sin", freqs.sin()[None, None, :, :])
+        freqs = torch.einsum("i,j->ij", positions, inv_freq)  # (seq_len, dim//2)
+        
+        # Duplicate freqs for complex-valued rotation
+        emb = torch.cat([freqs, freqs], dim=-1)  # (seq_len, dim)
+        
+        self.register_buffer("cos_cached", emb.cos()[None, None, :, :])  # (1, 1, seq, dim)
+        self.register_buffer("sin_cached", emb.sin()[None, None, :, :])
 
     def forward(self, q, k, seq_len):
-        cos = self.cos[:, :, :seq_len, :]
-        sin = self.sin[:, :, :seq_len, :]
-
-        q_rot = (q * cos) + (rotate_half(q) * sin)
-        k_rot = (k * cos) + (rotate_half(k) * sin)
-        return q_rot, k_rot
+        # If seq_len exceeds cache, recompute
+        if seq_len > self._seq_len_cached:
+            positions = torch.arange(seq_len, device=q.device).float()
+            freqs = torch.einsum("i,j->ij", positions, self.inv_freq)
+            emb = torch.cat([freqs, freqs], dim=-1)
+            cos = emb.cos()[None, None, :, :]
+            sin = emb.sin()[None, None, :, :]
+        else:
+            cos = self.cos_cached[:, :, :seq_len, :]
+            sin = self.sin_cached[:, :, :seq_len, :]
+        
+        # Apply rotary embeddings
+        q_embed = (q * cos) + (rotate_half(q) * sin)
+        k_embed = (k * cos) + (rotate_half(k) * sin)
+        
+        return q_embed, k_embed
 
 
 
@@ -143,19 +163,29 @@ class FeedForwardNet(nn.Module):
     def __init__(self, d_model, dff, dropout, activation="relu"):
         super().__init__()
 
-        self.linear1 = nn.Linear(d_model, dff)
+        # self.linear1 = nn.Linear(d_model, dff)
+
+        
+
+        # self.linear2 = nn.Linear(dff, d_model)
+
+        # if activation=="gelu":
+        #     self.activation = nn.GELU()
+        # elif activation=="swiglu":
+        #     self.activation = SwiGLU()
+        # else:
+        #     self.activation = nn.ReLU()
+
+        if activation == "swiglu":
+            self.linear1 = nn.Linear(d_model, 2 * dff)
+            self.activation = SwiGLU()
+            self.linear2 = nn.Linear(dff, d_model)
+        else:
+            self.linear1 = nn.Linear(d_model, dff)
+            self.activation = nn.GELU() if activation == "gelu" else nn.ReLU()
+            self.linear2 = nn.Linear(dff, d_model)
 
         self.dropout = nn.Dropout(dropout)
-
-        self.linear2 = nn.Linear(dff, d_model)
-
-        if activation=="gelu":
-            self.activation = nn.GELU()
-        elif activation=="swiglu":
-            self.activation = SwiGLU()
-        else:
-            self.activation = nn.ReLU()
-
 
     def forward(self, x):
         return self.linear2(self.dropout(self.activation(self.linear1(x))))
@@ -553,3 +583,15 @@ def build_transformer(src_vocab_size, trgt_vocab_size, src_seq_length, trgt_seq_
 
 
 
+if __name__ == "__main__":
+    # Test
+    dim = 64
+    rope = RotaryEmbedding(dim)
+
+    q = torch.randn(2, 8, 100, dim)  # (batch, heads, seq, d_k)
+    k = torch.randn(2, 8, 100, dim)
+
+    q_rot, k_rot = rope(q, k, 100)
+
+    print(q_rot.shape)  # Should be (2, 8, 100, 64)
+    print(torch.allclose(q_rot.norm(dim=-1), q.norm(dim=-1), atol=1e-5))  # Should be True (rotation preserves norm)
