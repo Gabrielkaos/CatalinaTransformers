@@ -29,6 +29,7 @@ val_data = data[n:]
 # seq_len
 block_size = 8
 batch_size = 32
+dropout = 0.4
 
 def get_batch(split="train"):
     data = train_data if split=="train" else val_data
@@ -49,7 +50,7 @@ class Head(nn.Module):
         self.query = nn.Linear(d_model, head_size, bias=False)
         self.value = nn.Linear(d_model, head_size, bias=False)
         self.register_buffer('tril',torch.tril(torch.ones((block_size, block_size))))
-
+        self.dropout = nn.Dropout(dropout)
     
     def forward(self, x):
         B, T, C = x.shape
@@ -64,6 +65,7 @@ class Head(nn.Module):
         wei = wei.masked_fill(self.tril[:T,:T]==0,float("-inf"))
 
         wei = torch.softmax(wei,dim=-1)
+        wei = self.dropout(wei)
 
         out = wei @ v
 
@@ -76,9 +78,12 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, head_size, d_model, num_heads):
         super().__init__()
         self.heads = nn.ModuleList([Head(head_size, d_model)  for _ in range(num_heads)])
+        self.projection = nn.Linear(d_model, d_model)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        return torch.cat([h(x) for h in self.heads], dim=-1)
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        return self.dropout(self.projection(out))
     
 
 class FeedForward(nn.Module):
@@ -86,8 +91,10 @@ class FeedForward(nn.Module):
         super().__init__()
 
         self.net = nn.Sequential(
-            nn.Linear(d_model,d_model),
+            nn.Linear(d_model, 4 * d_model),
             nn.ReLU(),
+            nn.Linear(4 * d_model,d_model),
+            nn.Dropout(dropout)
         )
     
     def forward(self, x):
@@ -103,23 +110,24 @@ class DecoderBlock(nn.Module):
         self.heads = MultiHeadAttention(head_size, d_model, n_head)
         self.feed_forward = FeedForward(d_model)
 
+        self.ln1 = nn.LayerNorm(d_model)
+        self.ln2 = nn.LayerNorm(d_model)
+
     def forward(self, x):
-        x = self.heads(x)
-        return self.feed_forward(x)
+        x = x + self.heads(self.ln1(x))
+        return x + self.feed_forward(self.ln2(x))
 
 class Bigram(nn.Module):
-    def __init__(self, d_model):
+    def __init__(self, d_model, n_layer):
         super().__init__()
 
         self.embed = nn.Embedding(vocab_size,d_model) #embedding layer
         self.position_embed = nn.Embedding(block_size,d_model) #positional encoding
         
         self.decoder_blocks = nn.Sequential(
-            DecoderBlock(d_model, 4),
-            DecoderBlock(d_model, 4),
-            DecoderBlock(d_model, 4),
+            *[DecoderBlock(d_model, 4) for _ in range(n_layer)]
         )
-
+        self.ln = nn.LayerNorm(d_model)
         self.lm_head = nn.Linear(d_model,vocab_size) #projection layer
 
     def forward(self, idx):
@@ -130,7 +138,7 @@ class Bigram(nn.Module):
         pos_embed = self.position_embed(torch.arange(T)) #t,d_model
 
         x = tokens_embed + pos_embed
-        x = self.decoder_blocks(x)
+        x = self.ln(self.decoder_blocks(x))
         logits = self.lm_head(x) #b,t,vocab_size
 
         return logits
@@ -149,7 +157,7 @@ class Bigram(nn.Module):
 
         return idx
 d_model = 32
-model = Bigram(d_model)
+model = Bigram(d_model, 6)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.AdamW(model.parameters(),lr=1e-3)
@@ -157,7 +165,8 @@ optimizer = torch.optim.AdamW(model.parameters(),lr=1e-3)
 #train
 print("Training...")
 model.train()
-for i in range(10000):
+n_epoch = 5000
+for i in range(n_epoch):
     x,y=get_batch("train")
 
     out = model(x)
@@ -168,7 +177,7 @@ for i in range(10000):
     loss.backward()
     optimizer.step()
 
-    if(i+1) % 100==0:print(f"{(loss.item()):.3f}-{i+1}/{10000}")
+    if(i+1) % 100==0:print(f"{(loss.item()):.3f}-{i+1}/{n_epoch}")
 
 print("Testing...\n")
 model.eval()
