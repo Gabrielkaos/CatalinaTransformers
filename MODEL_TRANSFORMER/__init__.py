@@ -426,7 +426,7 @@ def build_transformer_next_token(
     decoder_blocks = []
     for _ in range(n_layers):
         self_attn = MultiHeadBlock(d_model, n_heads, dropout,use_flash_attn=True)
-        ff = FeedForwardNet(d_model, dff, dropout,activation="gelu")
+        ff = FeedForwardNet(d_model, dff, dropout,activation="swiglu")
         decoder_blocks.append(DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False,norm="rms"))
 
     decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False,norm="rms")
