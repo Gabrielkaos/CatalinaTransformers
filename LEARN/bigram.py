@@ -27,9 +27,9 @@ train_data = data[:n]
 val_data = data[n:]
 
 # seq_len
-block_size = 8
+block_size = 16
 batch_size = 32
-dropout = 0.4
+dropout = 0.2
 
 def get_batch(split="train"):
     data = train_data if split=="train" else val_data
@@ -118,14 +118,14 @@ class DecoderBlock(nn.Module):
         return x + self.feed_forward(self.ln2(x))
 
 class Bigram(nn.Module):
-    def __init__(self, d_model, n_layer):
+    def __init__(self, d_model, n_layer, n_head):
         super().__init__()
 
         self.embed = nn.Embedding(vocab_size,d_model) #embedding layer
         self.position_embed = nn.Embedding(block_size,d_model) #positional encoding
         
         self.decoder_blocks = nn.Sequential(
-            *[DecoderBlock(d_model, 4) for _ in range(n_layer)]
+            *[DecoderBlock(d_model, n_head) for _ in range(n_layer)]
         )
         self.ln = nn.LayerNorm(d_model)
         self.lm_head = nn.Linear(d_model,vocab_size) #projection layer
@@ -157,7 +157,10 @@ class Bigram(nn.Module):
 
         return idx
 d_model = 32
-model = Bigram(d_model, 6)
+n_layer = 6
+n_head = 4
+
+model = Bigram(d_model, n_layer, n_head)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.AdamW(model.parameters(),lr=1e-3)
