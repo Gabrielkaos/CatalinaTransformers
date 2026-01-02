@@ -17,6 +17,33 @@ class InputEmbedding(nn.Module):
         return self.embedding(x) * math.sqrt(self.d_model)  # multiply by sqrt of dmodel
 
 
+def rotate_half(x):
+    x1, x2 = x[..., ::2], x[..., 1::2]
+    return torch.stack((-x2, x1), dim=-1).flatten(-2)
+
+
+class RotaryEmbedding(nn.Module):
+    def __init__(self, dim, max_seq_len=2048, base=10000):
+        super().__init__()
+        self.dim = dim
+        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
+
+        positions = torch.arange(max_seq_len).float()
+        freqs = torch.einsum("i,j->ij", positions, inv_freq)
+
+        self.register_buffer("cos", freqs.cos()[None, None, :, :])
+        self.register_buffer("sin", freqs.sin()[None, None, :, :])
+
+    def forward(self, q, k, seq_len):
+        cos = self.cos[:, :, :seq_len, :]
+        sin = self.sin[:, :, :seq_len, :]
+
+        q_rot = (q * cos) + (rotate_half(q) * sin)
+        k_rot = (k * cos) + (rotate_half(k) * sin)
+        return q_rot, k_rot
+
+
+
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, seq_len, dropout, device=None):
         super().__init__()
@@ -146,6 +173,9 @@ class MultiHeadBlock(nn.Module):
 
         self.d_k = d_model // n_heads
 
+        self.rope = RotaryEmbedding(self.d_k)
+
+
         self.w_q = nn.Linear(d_model, d_model)
         self.w_k = nn.Linear(d_model, d_model)
         self.w_v = nn.Linear(d_model, d_model)
@@ -194,6 +224,9 @@ class MultiHeadBlock(nn.Module):
         query = query.view(query.shape[0], query.shape[1], self.n_heads, self.d_k).transpose(1, 2)
         key = key.view(key.shape[0], key.shape[1], self.n_heads, self.d_k).transpose(1, 2)
         value = value.view(value.shape[0], value.shape[1], self.n_heads, self.d_k).transpose(1, 2)
+
+        seq_len = query.shape[-2]
+        query, key = self.rope(query, key, seq_len)
         
         # Use Flash Attention if available (PyTorch 2.0+)
         if self.use_flash_attn:
@@ -342,7 +375,7 @@ class ProjectionLayer(nn.Module):
 class Transformer(nn.Module):
     def __init__(self, encoder: Encoder, decoder: Decoder,
                  src_embed: InputEmbedding, trgt_embed: InputEmbedding,
-                 src_pos: PositionalEncoding, trgt_pos: PositionalEncoding,
+                #  src_pos: PositionalEncoding, trgt_pos: PositionalEncoding,
                  projection_layer: ProjectionLayer):
         super().__init__()
 
@@ -350,18 +383,18 @@ class Transformer(nn.Module):
         self.decoder = decoder
         self.src_embed = src_embed
         self.trgt_embed = trgt_embed
-        self.src_pos = src_pos
-        self.trgt_pos = trgt_pos
+        # self.src_pos = src_pos
+        # self.trgt_pos = trgt_pos
         self.proj = projection_layer
 
     def encode(self, src, src_mask):
         src = self.src_embed(src)
-        src = self.src_pos(src)
+        # src = self.src_pos(src)
         return self.encoder(src, src_mask)
 
     def decode(self, encoder_out, src_mask, trgt, trgt_mask):
         trgt = self.trgt_embed(trgt)
-        trgt = self.trgt_pos(trgt)
+        # trgt = self.trgt_pos(trgt)
         return self.decoder(trgt, encoder_out, src_mask, trgt_mask)
 
     def project(self, x):
@@ -371,18 +404,18 @@ class Transformer(nn.Module):
 class TransformerEncoderOnly(nn.Module):
     def __init__(self, encoder: Encoder,
                  src_embed: InputEmbedding,
-                 src_pos: PositionalEncoding,
+                #  src_pos: PositionalEncoding,
                  projection_layer: ProjectionLayer):
         super().__init__()
 
         self.encoder = encoder
         self.src_embed = src_embed
-        self.src_pos = src_pos
+        # self.src_pos = src_pos
         self.proj = projection_layer
 
     def encode(self, src, src_mask):
         src = self.src_embed(src)
-        src = self.src_pos(src)
+        # src = self.src_pos(src)
         return self.encoder(src, src_mask)
 
     def project(self, x):
@@ -391,11 +424,11 @@ class TransformerEncoderOnly(nn.Module):
 
 
 class TransformerDecoderOnly(nn.Module):
-    def __init__(self, decoder, embed, pos, projection):
+    def __init__(self, decoder, embed, projection):
         super().__init__()
         self.decoder = decoder
         self.embed = embed
-        self.pos = pos
+        # self.pos = pos
         self.proj = projection
 
         #weight tying
@@ -403,7 +436,7 @@ class TransformerDecoderOnly(nn.Module):
 
     def forward(self, x, mask):
         x = self.embed(x)
-        x = self.pos(x)
+        # x = self.pos(x)
         x = self.decoder(x, mask)
         return self.proj(x)
 
@@ -412,7 +445,6 @@ class TransformerDecoderOnly(nn.Module):
 #decoder only transformer (used for next token prediction)
 def build_transformer_next_token(
     vocab_size,
-    seq_len,
     d_model=512,
     n_layers=6,
     n_heads=8,
@@ -421,7 +453,7 @@ def build_transformer_next_token(
     device=None
 ):
     embed = InputEmbedding(d_model, vocab_size)
-    pos = PositionalEncoding(d_model, seq_len, dropout, device=device)
+    # pos = PositionalEncoding(d_model, seq_len, dropout, device=device)
 
     decoder_blocks = []
     for _ in range(n_layers):
@@ -432,7 +464,7 @@ def build_transformer_next_token(
     decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False,norm="rms")
     projection = ProjectionLayer(d_model, vocab_size)
 
-    model = TransformerDecoderOnly(decoder, embed, pos, projection)
+    model = TransformerDecoderOnly(decoder, embed, projection)
 
     for p in model.parameters():
         if p.dim() > 1:
@@ -448,7 +480,7 @@ def build_transformer_encoder(src_vocab_size, trgt_vocab_size, src_seq_length, d
     src_embed = InputEmbedding(d_model, src_vocab_size)
 
     # position encoders
-    src_pos = PositionalEncoding(d_model, src_seq_length, dropout, device=device)
+    # src_pos = PositionalEncoding(d_model, src_seq_length, dropout, device=device)
 
     # encoder_blocks
     encoder_blocks = []
@@ -464,7 +496,7 @@ def build_transformer_encoder(src_vocab_size, trgt_vocab_size, src_seq_length, d
     # project layer
     projection_layer = ProjectionLayer(d_model, trgt_vocab_size)
 
-    transformer = TransformerEncoderOnly(encoder, src_embed, src_pos, projection_layer)
+    transformer = TransformerEncoderOnly(encoder, src_embed, projection_layer)
 
     for p in transformer.parameters():
         if p.dim() > 1:
@@ -481,9 +513,9 @@ def build_transformer(src_vocab_size, trgt_vocab_size, src_seq_length, trgt_seq_
     trgt_embed = InputEmbedding(d_model, trgt_vocab_size)
 
     # position encoders
-    src_pos = PositionalEncoding(d_model, src_seq_length, dropout, device=device)
+    # src_pos = PositionalEncoding(d_model, src_seq_length, dropout, device=device)
 
-    trgt_pos = PositionalEncoding(d_model, trgt_seq_length, dropout, device=device)
+    # trgt_pos = PositionalEncoding(d_model, trgt_seq_length, dropout, device=device)
 
     # encoder_blocks
     encoder_blocks = []
@@ -509,7 +541,7 @@ def build_transformer(src_vocab_size, trgt_vocab_size, src_seq_length, trgt_seq_
     # project layer
     projection_layer = ProjectionLayer(d_model, trgt_vocab_size)
 
-    transformer = Transformer(encoder, decoder, src_embed, trgt_embed, src_pos, trgt_pos, projection_layer)
+    transformer = Transformer(encoder, decoder, src_embed, trgt_embed, projection_layer)
 
     for p in transformer.parameters():
         if p.dim() > 1:
