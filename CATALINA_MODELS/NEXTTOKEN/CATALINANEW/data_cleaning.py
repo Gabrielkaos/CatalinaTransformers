@@ -2,6 +2,33 @@ from unidecode import unidecode
 from datasets import load_dataset
 import torch
 from collections import OrderedDict
+import tiktoken
+
+def tokenize_with_tiktoken(text, max_length=None):
+    """
+    Tokenizes the input text using a tokenizer similar to ChatGPT's tokenizer (tiktoken).
+
+    Args:
+        text (str): The input text to be tokenized.
+        max_length (int, optional): Maximum number of tokens to return. If None, return all tokens.
+
+    Returns:
+        list[int]: List of token IDs.
+        list[str]: List of corresponding token strings.
+    """
+    # Load the tokenizer
+    tokenizer = tiktoken.get_encoding("cl100k_base")  # This encoding is similar to GPT-3.5/4.
+
+    # Tokenize the text
+    token_ids = tokenizer.encode(text)
+    token_strings = [tokenizer.decode([token_id]) for token_id in token_ids]
+
+    # Optionally truncate to max_length
+    if max_length:
+        token_ids = token_ids[:max_length]
+        token_strings = token_strings[:max_length]
+
+    return token_ids, token_strings
 
 def split_string_with_special_characters(input_str):
     char_not = ["`", "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_", "+", "=", ",", "<", ">", ".", "/",
@@ -92,15 +119,23 @@ def get_language_model_data(max_seq_len):
 
 
 if __name__ == "__main__":
-    max_seq_len = 72
+    sentence = "Curiosity is what pushes people beyond what they already know. It begins with a simple question and grows through exploration. Mistakes along the way are not failures but markers of learning. Over time, curiosity builds confidence and understanding. That is how ideas slowly become discoveries."
 
-    x, vocab, tokenizer = get_language_model_data(max_seq_len)
+    sentence = sentence.lower()
+    print(tokenize_with_tiktoken(sentence)[1])
+    print(split_string_with_special_characters(sentence))
 
-    torch.save(
-        {
-            "x": x,
-            "vocab": vocab,
-            "tokenizer": tokenizer
-        },
-        "data.pth"
-    )
+    print(len(tokenize_with_tiktoken(sentence)[1]))
+    print(len(split_string_with_special_characters(sentence)))
+    # max_seq_len = 72
+
+    # x, vocab, tokenizer = get_language_model_data(max_seq_len)
+
+    # torch.save(
+    #     {
+    #         "x": x,
+    #         "vocab": vocab,
+    #         "tokenizer": tokenizer
+    #     },
+    #     "data.pth"
+    # )

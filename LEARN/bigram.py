@@ -166,6 +166,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.AdamW(model.parameters(),lr=1e-3)
 
 #train
+print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 print("Training...")
 model.train()
 n_epoch = 5000
@@ -181,6 +182,8 @@ for i in range(n_epoch):
     optimizer.step()
 
     if(i+1) % 100==0:print(f"{(loss.item()):.3f}-{i+1}/{n_epoch}")
+
+
 
 print("Testing...\n")
 model.eval()
