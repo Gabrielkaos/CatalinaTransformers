@@ -239,7 +239,8 @@ class DecoderBlock(nn.Module):
         x = self.residual_conns[1](x, lambda x: self.cross_attention(x, encoder_output, encoder_output, src_mask))
         x = self.residual_conns[2](x, self.feed_forward)
         return x
-    
+
+#modified decoder block(removed cross attention) used for decoder only transformer
 class DecoderOnlyBlock(nn.Module):
     def __init__(self, self_attention: MultiHeadBlock, feed_forward_block, dropout, d_model,bias=True):
         super().__init__()
@@ -266,7 +267,8 @@ class Decoder(nn.Module):
         for layer in self.layers:
             x = layer(x, encoder_out, src_mask, trgt_mask)
         return self.norm(x)
-    
+
+#used mainly for the decoder only transformer
 class DecoderOnly(nn.Module):
     def __init__(self, layers: nn.ModuleList, d_model,bias=True):
         super().__init__()
@@ -290,6 +292,7 @@ class ProjectionLayer(nn.Module):
         return torch.log_softmax(self.projection_layer(x), dim=-1)
 
 
+#full encoder + decoder
 class Transformer(nn.Module):
     def __init__(self, encoder: Encoder, decoder: Decoder,
                  src_embed: InputEmbedding, trgt_embed: InputEmbedding,
@@ -339,6 +342,8 @@ class TransformerEncoderOnly(nn.Module):
     def project(self, x):
         return self.proj(x)
     
+
+
 class TransformerDecoderOnly(nn.Module):
     def __init__(self, decoder, embed, pos, projection):
         super().__init__()
@@ -347,6 +352,7 @@ class TransformerDecoderOnly(nn.Module):
         self.pos = pos
         self.proj = projection
 
+        #weight tying
         self.proj.projection_layer.weight=self.embed.embedding.weight
 
     def forward(self, x, mask):
@@ -355,6 +361,9 @@ class TransformerDecoderOnly(nn.Module):
         x = self.decoder(x, mask)
         return self.proj(x)
 
+
+
+#decoder only transformer (used for next token prediction)
 def build_transformer_next_token(
     vocab_size,
     seq_len,
@@ -372,17 +381,7 @@ def build_transformer_next_token(
     for _ in range(n_layers):
         self_attn = MultiHeadBlock(d_model, n_heads, dropout,use_flash_attn=True)
         ff = FeedForwardNet(d_model, dff, dropout,activation="gelu")
-        decoder_blocks.append(
-            DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False)
-        )
-
-    # decoder_blocks = []
-    # for _ in range(n_layers):
-    #     decoder_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout)
-    #     cross_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout)
-    #     feed_f_block = FeedForwardNet(d_model, dff, dropout)
-    #     decoder_block = DecoderBlock(decoder_self_attention_block, cross_self_attention_block, feed_f_block, dropout)
-    #     decoder_blocks.append(decoder_block)
+        decoder_blocks.append(DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False))
 
     decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False)
     projection = ProjectionLayer(d_model, vocab_size)
@@ -396,7 +395,7 @@ def build_transformer_next_token(
     return model
 
 
-
+#encoder only
 def build_transformer_encoder(src_vocab_size, trgt_vocab_size, src_seq_length, d_model=512, n_layers=6,
                           n_heads=8, dropout=0.1, dff=2048, device=None):
     # create embed layers
@@ -423,11 +422,12 @@ def build_transformer_encoder(src_vocab_size, trgt_vocab_size, src_seq_length, d
 
     for p in transformer.parameters():
         if p.dim() > 1:
-            nn.init.xavier_uniform(p)
+            nn.init.xavier_uniform_(p)
 
     return transformer
 
 
+# encoder + decoder architecture
 def build_transformer(src_vocab_size, trgt_vocab_size, src_seq_length, trgt_seq_length, d_model=512, n_layers=6,
                       n_heads=8, dropout=0.1, dff=2048, device=None):
     # create embed layers
@@ -467,7 +467,7 @@ def build_transformer(src_vocab_size, trgt_vocab_size, src_seq_length, trgt_seq_
 
     for p in transformer.parameters():
         if p.dim() > 1:
-            nn.init.xavier_uniform(p)
+            nn.init.xavier_uniform_(p)
 
     return transformer
 
@@ -475,30 +475,3 @@ def build_transformer(src_vocab_size, trgt_vocab_size, src_seq_length, trgt_seq_
 
 
 
-class RNN(nn.Module):
-    def __init__(self, n_input, n_hiddens, num_layers, n_output, device=None):
-        super(RNN, self).__init__()
-
-        if device is None:
-            device = torch.device("cpu")
-
-        self.device = device
-        self.n_hidden = n_hiddens
-        self.n_layers = num_layers
-        self.embed = nn.Embedding(n_input, n_hiddens).to(self.device)
-        self.lstm = nn.LSTM(n_hiddens, n_hiddens, num_layers, batch_first=True, bidirectional=True).to(self.device)
-
-        self.fc = nn.Linear(n_hiddens * 2, n_output).to(self.device)
-
-    def forward(self, x, hiddens, cells):
-        output_n = self.embed(x)
-
-        output_n, (hiddens, cells) = self.lstm(output_n.unsqueeze(1), (hiddens, cells))
-
-        output_n = self.fc(output_n.reshape(output_n.shape[0], -1))
-        return output_n, (hiddens, cells)
-
-    def init_hidden(self, batch_num):
-        hiddens = torch.zeros(self.n_layers * 2, batch_num, self.n_hidden).to(self.device)
-        cells = torch.zeros(self.n_layers * 2, batch_num, self.n_hidden).to(self.device)
-        return hiddens, cells
