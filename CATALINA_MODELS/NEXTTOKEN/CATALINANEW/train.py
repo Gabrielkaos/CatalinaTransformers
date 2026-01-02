@@ -44,9 +44,7 @@ def train():
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     model = build_transformer_next_token(
-        vocab_size=len(vocab),
-        seq_len=seq_len - 1,
-        device=device
+        vocab_size=len(vocab)
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)

@@ -43,9 +43,7 @@ if __name__ == "__main__":
     tokenizer = data["tokenizer"]
 
     model = build_transformer_next_token(
-        vocab_size=len(vocab),
-        seq_len=seq_len - 1,
-        device=device
+        vocab_size=len(vocab)
     ).to(device)
     model.load_state_dict(torch.load("lm-17.pth",map_location=torch.device(device))["model_state"])
     model.eval()
