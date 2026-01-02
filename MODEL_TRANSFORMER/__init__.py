@@ -124,8 +124,11 @@ class FeedForwardNet(nn.Module):
 
         if activation=="gelu":
             self.activation = nn.GELU()
+        elif activation=="swiglu":
+            self.activation = SwiGLU()
         else:
             self.activation = nn.ReLU()
+
 
     def forward(self, x):
         return self.linear2(self.dropout(self.activation(self.linear1(x))))
