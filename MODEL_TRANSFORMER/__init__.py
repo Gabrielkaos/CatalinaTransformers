@@ -154,41 +154,68 @@ class LayerNormalization(nn.Module):
         return self.alpha * normalized
 
 #better than GELU (idk)
-class SwiGLU(nn.Module):
-    def forward(self, x):
-        x, gate = x.chunk(2, dim=-1)
-        return F.silu(gate) * x
+# class SwiGLU(nn.Module):
+#     def forward(self, x):
+#         x, gate = x.chunk(2, dim=-1)
+#         return F.silu(gate) * x
 
-class FeedForwardNet(nn.Module):
-    def __init__(self, d_model, dff, dropout, activation="relu"):
-        super().__init__()
+# class FeedForwardNet(nn.Module):
+#     def __init__(self, d_model, dff, dropout, activation="relu"):
+#         super().__init__()
 
-        # self.linear1 = nn.Linear(d_model, dff)
+#         # self.linear1 = nn.Linear(d_model, dff)
 
         
 
-        # self.linear2 = nn.Linear(dff, d_model)
+#         # self.linear2 = nn.Linear(dff, d_model)
 
-        # if activation=="gelu":
-        #     self.activation = nn.GELU()
-        # elif activation=="swiglu":
-        #     self.activation = SwiGLU()
-        # else:
-        #     self.activation = nn.ReLU()
+#         # if activation=="gelu":
+#         #     self.activation = nn.GELU()
+#         # elif activation=="swiglu":
+#         #     self.activation = SwiGLU()
+#         # else:
+#         #     self.activation = nn.ReLU()
 
+#         if activation == "swiglu":
+#             self.linear1 = nn.Linear(d_model, 2 * dff)
+#             self.activation = SwiGLU()
+#             self.linear2 = nn.Linear(dff, d_model)
+#         else:
+#             self.linear1 = nn.Linear(d_model, dff)
+#             self.activation = nn.GELU() if activation == "gelu" else nn.ReLU()
+#             self.linear2 = nn.Linear(dff, d_model)
+
+#         self.dropout = nn.Dropout(dropout)
+
+#     def forward(self, x):
+#         return self.linear2(self.dropout(self.activation(self.linear1(x))))
+
+class FeedForwardNet(nn.Module):
+    def __init__(self, d_model, dff, dropout, activation="gelu", bias=False):
+        super().__init__()
+        
         if activation == "swiglu":
-            self.linear1 = nn.Linear(d_model, 2 * dff)
-            self.activation = SwiGLU()
-            self.linear2 = nn.Linear(dff, d_model)
+            # For parameter parity with standard FFN of hidden dim 4*d_model:
+            # SwiGLU uses (8/3)*d_model ≈ 2.67*d_model
+            self.w1 = nn.Linear(d_model, dff, bias=bias)  # Gate
+            self.w3 = nn.Linear(d_model, dff, bias=bias)  # Value
+            self.w2 = nn.Linear(dff, d_model, bias=bias)  # Down
+            self.activation_fn = F.silu
+            self.use_swiglu = True
         else:
-            self.linear1 = nn.Linear(d_model, dff)
-            self.activation = nn.GELU() if activation == "gelu" else nn.ReLU()
-            self.linear2 = nn.Linear(dff, d_model)
-
+            self.linear1 = nn.Linear(d_model, dff, bias=bias)
+            self.linear2 = nn.Linear(dff, d_model, bias=bias)
+            self.activation_fn = F.gelu if activation == "gelu" else F.relu
+            self.use_swiglu = False
+        
         self.dropout = nn.Dropout(dropout)
-
+    
     def forward(self, x):
-        return self.linear2(self.dropout(self.activation(self.linear1(x))))
+        if self.use_swiglu:
+            # SwiGLU: silu(W1 @ x) ⊙ (W3 @ x)
+            return self.w2(self.dropout(self.activation_fn(self.w1(x)) * self.w3(x)))
+        else:
+            return self.linear2(self.dropout(self.activation_fn(self.linear1(x))))
 
 
 class MultiHeadBlock(nn.Module):

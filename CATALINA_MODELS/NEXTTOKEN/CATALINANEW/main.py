@@ -28,7 +28,8 @@ def generate(model, tokenizer, prompt, max_len=50, device="cpu"):
         if next_token.item() == tokenizer["<EOS>"]:
             break
 
-    decoded = [k for i in x[0].tolist() for k, v in tokenizer.items() if v == i]
+    id_to_token = {v: k for k, v in tokenizer.items()}
+    decoded = [id_to_token.get(i, "<UNK>") for i in x[0].tolist()]
     return " ".join(decoded)
 
 
