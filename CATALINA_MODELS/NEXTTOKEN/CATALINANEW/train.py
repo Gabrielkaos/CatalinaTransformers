@@ -1,9 +1,8 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
-from MODEL_TRANSFORMER.OLD import build_transformer_next_token
 import torch.nn as nn
-from torch.cuda.amp.autocast_mode import autocast
-from torch.cuda.amp.grad_scaler import GradScaler
+from torch.amp import autocast, GradScaler
+from MODEL_TRANSFORMER import build_transformer_next_token
 
 class LanguageModelDataset(Dataset):
     def __init__(self, sequences, pad_idx):
@@ -14,6 +13,7 @@ class LanguageModelDataset(Dataset):
         return len(self.sequences)
 
     def __getitem__(self, idx):
+        
         seq = self.sequences[idx]
         return {
             "input": seq[:-1],
@@ -29,7 +29,7 @@ def train():
     print(f"Device={device}")
 
     seq_len = 72
-    batch_size = 64
+    batch_size = 130
     lr = 3e-4
     epochs = 50
 
@@ -52,14 +52,14 @@ def train():
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss(ignore_index=pad_idx)
 
-    scaler = GradScaler(device)
+    scaler = GradScaler()
 
 
     model.train()
 
     for epoch in range(epochs):
         total_loss = 0
-        for batch in loader:
+        for batch_i,batch in enumerate(loader):
             x = batch["input"].to(device)
             y = batch["label"].to(device)
 
@@ -68,7 +68,7 @@ def train():
 
             optimizer.zero_grad()
 
-            with autocast(device):
+            with autocast(device_type="cuda"):
                 logits = model(x, mask)
                 loss = criterion(
                     logits.view(-1, len(vocab)),
@@ -82,6 +82,9 @@ def train():
             scaler.update()
 
             total_loss += loss.item()
+
+            if (batch_i + 1) % 5 == 0:
+              print(f"{batch_i+1}/{len(loader)}")
 
         print(f"Epoch {epoch+1}: loss={total_loss/len(loader):.4f}")
         torch.save({"model_state": model.state_dict()}, "lm.pth")

@@ -1,6 +1,6 @@
 import torch
 from data_cleaning import split_string_with_special_characters
-from MODEL_TRANSFORMER.OLD import build_transformer_next_token
+from MODEL_TRANSFORMER import build_transformer_next_token
 
 def causal_mask(size):
     return torch.tril(torch.ones(size, size)).unsqueeze(0).int()
@@ -16,6 +16,8 @@ def generate(model, tokenizer, prompt, max_len=50, device="cpu"):
     x = torch.tensor(ids, dtype=torch.long).unsqueeze(0).to(device)
 
     for _ in range(max_len):
+
+        x = x[:,-72:]
         mask = causal_mask(x.size(1)).to(device)
         with torch.no_grad():
             logits = model(x, mask)
@@ -45,7 +47,7 @@ if __name__ == "__main__":
         seq_len=seq_len - 1,
         device=device
     ).to(device)
-    model.load_state_dict(torch.load("lm-10.pth",map_location=torch.device(device))["model_state"])
+    model.load_state_dict(torch.load("lm-17.pth",map_location=torch.device(device))["model_state"])
     model.eval()
 
-    print(generate(model,tokenizer,"Hello I am about to"))
+    print(generate(model,tokenizer,"We",max_len=100))
