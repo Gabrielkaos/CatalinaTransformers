@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import math
+from torch.nn import functional as F
 
 
 class InputEmbedding(nn.Module):
@@ -60,7 +61,22 @@ class PositionalEncoding(nn.Module):
         x = x + sliced_pos_enc.requires_grad_(False)
 
         return self.dropout(x)
+"""
+LayerNorm
 
+    Normalizes using mean + variance
+    Removes both scale and bias
+    Slightly more expensive
+    Very stable across many tasks
+    Use if Small 
+
+RMSNorm
+
+    Normalizes using root mean square only
+    Keeps the mean (no centering)
+    Cheaper (fewer ops)
+    Preserves signal magnitude better
+"""
 class RMSNorm(nn.Module):
     def __init__(self, d_model, eps=1e-6):
         super().__init__()
@@ -90,6 +106,11 @@ class LayerNormalization(nn.Module):
             return self.alpha * normalized  + self.bias
         return self.alpha * normalized
 
+#better than GELU (idk)
+class SwiGLU(nn.Module):
+    def forward(self, x):
+        x, gate = x.chunk(2, dim=-1)
+        return F.silu(gate) * x
 
 class FeedForwardNet(nn.Module):
     def __init__(self, d_model, dff, dropout, activation="relu"):
