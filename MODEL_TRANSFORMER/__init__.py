@@ -217,24 +217,27 @@ class MultiHeadBlock(nn.Module):
 
 
 class ResidualConn(nn.Module):
-    def __init__(self, dropout, d_model, bias=True):
+    def __init__(self, dropout, d_model, bias=True,norm="layernorm"):
         super().__init__()
 
         self.dropout = nn.Dropout(dropout)
-        self.norm = LayerNormalization(d_model,bias=bias)
+        if norm=="layernorm":
+            self.norm = LayerNormalization(d_model,bias=bias)
+        else:
+            self.norm = RMSNorm(d_model)
 
     def forward(self, x, sub_layer):
         return x + self.dropout(sub_layer(self.norm(x)))
 
 
 class EncoderBlock(nn.Module):
-    def __init__(self, self_attention_block: MultiHeadBlock, feed_forward_block: FeedForwardNet, dropout, d_model,bias=True):
+    def __init__(self, self_attention_block: MultiHeadBlock, feed_forward_block: FeedForwardNet, dropout, d_model,bias=True,norm="layernorm"):
         super().__init__()
 
         self.attention_block = self_attention_block
         self.feed_forward_block = feed_forward_block
 
-        self.residual_conn = nn.ModuleList([ResidualConn(dropout, d_model,bias=bias) for _ in range(2)])
+        self.residual_conn = nn.ModuleList([ResidualConn(dropout, d_model,bias=bias,norm=norm) for _ in range(2)])
 
     def forward(self, x, src_mask):
         x = self.residual_conn[0](x, lambda x: self.attention_block(x, x, x, src_mask))
@@ -244,11 +247,14 @@ class EncoderBlock(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, layers: nn.ModuleList, d_model,bias=True):
+    def __init__(self, layers: nn.ModuleList, d_model,bias=True,norm="layernorm"):
         super().__init__()
 
         self.layers = layers
-        self.norm = LayerNormalization(d_model, bias=bias)
+        if norm=="layernorm":
+            self.norm = LayerNormalization(d_model,bias=bias)
+        else:
+            self.norm = RMSNorm(d_model)
 
     def forward(self, x, mask):
         for layer in self.layers:
@@ -258,14 +264,15 @@ class Encoder(nn.Module):
 
 
 class DecoderBlock(nn.Module):
-    def __init__(self, self_attention: MultiHeadBlock, cross_attention: MultiHeadBlock, feed_forward_block, dropout, d_model,bias=True):
+    def __init__(self, self_attention: MultiHeadBlock, cross_attention: MultiHeadBlock, feed_forward_block, dropout, d_model,
+                 bias=True, norm="layernorm"):
         super().__init__()
 
         self.self_attention = self_attention
         self.cross_attention = cross_attention
         self.feed_forward = feed_forward_block
 
-        self.residual_conns = nn.ModuleList([ResidualConn(dropout,d_model,bias=bias) for _ in range(3)])
+        self.residual_conns = nn.ModuleList([ResidualConn(dropout,d_model,bias=bias,norm=norm) for _ in range(3)])
 
     def forward(self, x, encoder_output, src_mask, trgt_mask):
         x = self.residual_conns[0](x, lambda x: self.self_attention(x, x, x, trgt_mask))
@@ -275,13 +282,13 @@ class DecoderBlock(nn.Module):
 
 #modified decoder block(removed cross attention) used for decoder only transformer
 class DecoderOnlyBlock(nn.Module):
-    def __init__(self, self_attention: MultiHeadBlock, feed_forward_block, dropout, d_model,bias=True):
+    def __init__(self, self_attention: MultiHeadBlock, feed_forward_block, dropout, d_model,bias=True,norm="layernorm"):
         super().__init__()
 
         self.self_attention = self_attention
         self.feed_forward = feed_forward_block
 
-        self.residual_conns = nn.ModuleList([ResidualConn(dropout,d_model,bias=bias) for _ in range(2)])
+        self.residual_conns = nn.ModuleList([ResidualConn(dropout,d_model,bias=bias,norm=norm) for _ in range(2)])
 
     def forward(self, x, trgt_mask):
         x = self.residual_conns[0](x, lambda x: self.self_attention(x, x, x, trgt_mask))
@@ -290,11 +297,14 @@ class DecoderOnlyBlock(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, layers: nn.ModuleList, d_model, bias=True):
+    def __init__(self, layers: nn.ModuleList, d_model, bias=True,norm="layernorm"):
         super().__init__()
 
         self.layers = layers
-        self.norm = LayerNormalization(d_model,bias=bias)
+        if norm=="layernorm":
+            self.norm = LayerNormalization(d_model,bias=bias)
+        else:
+            self.norm = RMSNorm(d_model)
 
     def forward(self, x, encoder_out, src_mask, trgt_mask):
         for layer in self.layers:
@@ -303,11 +313,14 @@ class Decoder(nn.Module):
 
 #used mainly for the decoder only transformer
 class DecoderOnly(nn.Module):
-    def __init__(self, layers: nn.ModuleList, d_model,bias=True):
+    def __init__(self, layers: nn.ModuleList, d_model,bias=True,norm="layernorm"):
         super().__init__()
 
         self.layers = layers
-        self.norm = LayerNormalization(d_model,bias=bias)
+        if norm=="layernorm":
+            self.norm = LayerNormalization(d_model,bias=bias)
+        else:
+            self.norm = RMSNorm(d_model)
 
     def forward(self, x, mask):
         for layer in self.layers:
@@ -414,9 +427,9 @@ def build_transformer_next_token(
     for _ in range(n_layers):
         self_attn = MultiHeadBlock(d_model, n_heads, dropout,use_flash_attn=True)
         ff = FeedForwardNet(d_model, dff, dropout,activation="gelu")
-        decoder_blocks.append(DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False))
+        decoder_blocks.append(DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False,norm="rms"))
 
-    decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False)
+    decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False,norm="rms")
     projection = ProjectionLayer(d_model, vocab_size)
 
     model = TransformerDecoderOnly(decoder, embed, pos, projection)

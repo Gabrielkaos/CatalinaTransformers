@@ -1,0 +1,2 @@
+data here is from when using LayerNorm instead of RMSNorm and when using Gelu instead of Swiglu
+also the torch.log_softmax in projection is present when this data was used
