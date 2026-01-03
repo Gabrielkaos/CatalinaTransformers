@@ -231,20 +231,37 @@ if __name__ == "__main__":
     model = build_transformer_next_token(**config).to(device)
     
     try:
-        # checkpoint = torch.load("lm-17.pth", map_location=device)
-        # model.load_state_dict(checkpoint["model_state"])
+        checkpoint = torch.load("checkpoints/checkpoint_epoch_29.pth", map_location=device)
+        state_dict = checkpoint["model_state"]
+
+        # Handle compiled checkpoints: remove the `_orig_mod.` prefix if present
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith("_orig_mod."):
+                new_k = k[len("_orig_mod."):]
+            else:
+                new_k = k
+            new_state_dict[new_k] = v
+
+        model.load_state_dict(new_state_dict)  # optionally strict=False if needed
         print("Model loaded successfully!")
+
     except FileNotFoundError:
         print("Warning: Model checkpoint not found. Using random weights.")
     except KeyError:
         print("Warning: Checkpoint format incorrect. Expected 'model_state' key.")
     
     model.eval()
-    
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,}")
+    prompt = "Who are you?"
     # Example: Greedy decoding (deterministic)
     print("\n=== Greedy Decoding ===")
+    print("Prompt:",prompt,"\n")
     output = generate(
-        model, tokenizer, "We", 
+        model, tokenizer, prompt, 
         max_len=100, 
         device=device,
         temperature=0.0  # Greedy
@@ -252,9 +269,10 @@ if __name__ == "__main__":
     print(output)
     
     # Example: Creative sampling
-    print("\n=== Creative Sampling (temp=0.8, top_p=0.9) ===")
+    print("\n=== Sampling (temp=0.8, top_p=0.9) ===")
+    print("Prompt:",prompt,"\n")
     output = generate(
-        model, tokenizer, "We",
+        model, tokenizer, prompt,
         max_len=100,
         device=device,
         temperature=0.8,
