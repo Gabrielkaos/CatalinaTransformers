@@ -210,16 +210,11 @@ def train():
    
     config = {
         "vocab_size": None,  
-        "d_model":768,
-        "n_layers":12,
-        "n_heads":12,
-        "dropout":0.1,
-        "dff":768 * 4,
     }
     
    
-    batch_size = 130
-    gradient_accumulation_steps = 1  
+    batch_size = 80
+    gradient_accumulation_steps = 2  
     lr = 3e-4
     weight_decay = 0.01
     epochs = 50
@@ -233,19 +228,19 @@ def train():
    
     save_dir = Path("checkpoints")
     save_dir.mkdir(exist_ok=True)
-    save_every = 5 
+    save_every = 1 
     resume_from = None  
     
     # ========== Load Data ==========
     print("Loading data...")
-    data = torch.load("data.pth")
+    data = torch.load("data_tiktoken.pth")
     sequences = data["x"]
-    vocab = data["vocab_size"]
-    tokenizer = tiktoken.get_encoding("cl100k_base")
-    pad_idx = tokenizer.eot_token
+    vocab = data["vocab"]
+    tokenizer = data["tokenizer"]
+    pad_idx = tokenizer.get("<PAD>")
     
-    config["vocab_size"] = vocab
-    print(f"Vocab size: {vocab}")
+    config["vocab_size"] = len(vocab)
+    print(f"Vocab size: {len(vocab)}")
     print(f"Total sequences: {len(sequences)}")
     
    

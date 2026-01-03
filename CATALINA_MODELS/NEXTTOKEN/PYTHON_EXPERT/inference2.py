@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from data_cleaning2 import tokenize_with_tiktoken
 from MODEL_TRANSFORMER import build_transformer_next_token
-
+from unidecode import unidecode
 
 def causal_mask(size, device):
     
@@ -48,7 +48,8 @@ def generate(
     model, 
     tokenizer, 
     prompt, 
-    max_len=50, 
+    max_len=50,
+    seq_len=256, 
     device="cpu",
     temperature=1.0,
     top_k=None,
@@ -58,17 +59,11 @@ def generate(
     
     model.eval()
     
-    
-    id_to_token = {v: k for k, v in tokenizer.items()}
-    
-    
-    tokens = split_string_with_special_characters(prompt.lower())
-    tokens = ["<SOS>"] + tokens
-    ids = [tokenizer.get(t, tokenizer.get("<UNK>", tokenizer["<PAD>"])) for t in tokens]
+    _,bow = tokenize_with_tiktoken(unidecode(prompt.strip()))
+    token_ids = [tokenizer.get(i,tokenizer.get("<PAD>")) for i in bow]
     
    
-    x = torch.tensor([ids], dtype=torch.long, device=device)
-    seq_len = model.pos.seq_len if hasattr(model, 'pos') else 512
+    x = torch.tensor([token_ids], dtype=torch.long, device=device)
     
     
     for step in range(max_len):
@@ -112,33 +107,33 @@ def generate(
         x = torch.cat([x, next_token], dim=1)
     
     
-    decoded_tokens = [id_to_token.get(i, "<UNK>") for i in x[0].tolist()]
-    
-    
-    decoded_tokens = [t for t in decoded_tokens if t not in ["<SOS>", "<PAD>"]]
+    decoder = {idx:char for char,idx in tokenizer.items()}
+    decoded_tokens = "".join(decoder[i] for i in x[0].tolist())
 
 
-    return " ".join(decoded_tokens)
+    return decoded_tokens
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
     
     
-    data = torch.load("data.pth", map_location=device)
+    data = torch.load("data_python_codes_25k.pth", map_location=device)
     vocab = data["vocab"]
     tokenizer = data["tokenizer"]
     
     
     config = {
-        "vocab_size": len(vocab)
+        "vocab_size": len(vocab),  
+        
     }
     
     
     model = build_transformer_next_token(**config).to(device)
-    
+    print(f"Model vocab:{model.embed.vocab_size}")
+    print(f"Data vocab:{len(vocab)}")
     try:
-        checkpoint = torch.load("checkpoints/checkpoint_epoch_29.pth", map_location=device)
+        checkpoint = torch.load("checkpoints/best_model.pth", map_location=device)
         state_dict = checkpoint["model_state"]
 
         
@@ -163,15 +158,19 @@ if __name__ == "__main__":
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
-    prompt = "Who are you?"
+    prompt = """
+Instruction: Help me sort a list!
+Response:
+            """
     
     print("\n=== Greedy Decoding ===")
     print("Prompt:",prompt,"\n")
     output = generate(
         model, tokenizer, prompt, 
-        max_len=100, 
+        max_len=100,seq_len=256, 
         device=device,
-        temperature=0.0 
+        temperature=0.1,
+        repetition_penalty=1.2 
     )
     print(output)
     
@@ -180,7 +179,7 @@ if __name__ == "__main__":
     print("Prompt:",prompt,"\n")
     output = generate(
         model, tokenizer, prompt,
-        max_len=100,
+        max_len=500,seq_len=256,
         device=device,
         temperature=0.8,
         top_p=0.9,
