@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from tqdm import tqdm
 from MODEL_TRANSFORMER import build_transformer_next_token
-
+import tiktoken
 
 class LanguageModelDataset(Dataset):
     def __init__(self, sequences, pad_idx):
@@ -26,6 +26,7 @@ class LanguageModelDataset(Dataset):
 
 
 def causal_mask(size, device):
+    
     return torch.tril(torch.ones(size, size, device=device, dtype=torch.bool))
 
 
@@ -44,17 +45,17 @@ def get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_st
 
 def compute_metrics(logits, labels, pad_idx):
     
-    # Flatten
+    
     logits_flat = logits.view(-1, logits.size(-1))
     labels_flat = labels.view(-1)
     
-    # Cross entropy
+    
     loss = nn.functional.cross_entropy(logits_flat, labels_flat, ignore_index=pad_idx)
     
-    # Perplexity
+    
     perplexity = torch.exp(loss)
     
-    # Accuracy (excluding padding)
+    
     predictions = logits_flat.argmax(dim=-1)
     mask = labels_flat != pad_idx
     correct = (predictions == labels_flat) & mask
@@ -86,12 +87,12 @@ def evaluate(model, loader, criterion, device, mask_cache):
             mask_cache[seq_len] = causal_mask(seq_len, device)
         mask = mask_cache[seq_len]
         
-        
+       
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
             logits = model(x, mask)
             loss = criterion(logits.view(-1, logits.size(-1)), y.view(-1))
         
-        # Metrics
+        
         metrics = compute_metrics(logits, y, criterion.ignore_index)
         total_loss += metrics["loss"]
         total_perplexity += metrics["perplexity"]
@@ -107,7 +108,7 @@ def evaluate(model, loader, criterion, device, mask_cache):
 
 def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device, 
                 mask_cache, gradient_accumulation_steps=1, max_grad_norm=1.0):
-    
+   
     model.train()
     total_loss = 0
     total_tokens = 0
@@ -120,28 +121,28 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
         x = batch["input"].to(device, non_blocking=True)
         y = batch["label"].to(device, non_blocking=True)
         
-        # Get or create mask
+       
         seq_len = x.size(1)
         if seq_len not in mask_cache:
             mask_cache[seq_len] = causal_mask(seq_len, device)
         mask = mask_cache[seq_len]
         
-        # Forward pass with mixed precision
+       
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
             logits = model(x, mask)
             loss = criterion(logits.view(-1, logits.size(-1)), y.view(-1))
-            loss = loss / gradient_accumulation_steps  # Scale loss
+            loss = loss / gradient_accumulation_steps  
         
-        # Backward pass
+       
         scaler.scale(loss).backward()
         
-        # Update weights every N steps
+        
         if (batch_idx + 1) % gradient_accumulation_steps == 0:
-            # Unscale before clipping
+            
             scaler.unscale_(optimizer)
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             
-            # Optimizer step
+           
             scaler.step(optimizer)
             scaler.update()
             optimizer.zero_grad()
@@ -149,18 +150,18 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
             if scheduler is not None:
                 scheduler.step()
         
-        # Metrics
+        
         total_loss += loss.item() * gradient_accumulation_steps
         total_tokens += (y != criterion.ignore_index).sum().item()
         
-        # Update progress bar
+        
         current_lr = optimizer.param_groups[0]['lr']
         pbar.set_postfix({
             'loss': f'{loss.item() * gradient_accumulation_steps:.4f}',
             'lr': f'{current_lr:.2e}'
         })
     
-    # Compute throughput
+    
     elapsed_time = time.time() - start_time
     tokens_per_sec = total_tokens / elapsed_time
     
@@ -206,12 +207,17 @@ def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
     
-    
+   
     config = {
         "vocab_size": None,  
+        "d_model":768,
+        "n_layers":12,
+        "n_heads":12,
+        "dropout":0.1,
+        "dff":768 * 4,
     }
     
-    
+   
     batch_size = 130
     gradient_accumulation_steps = 1  
     lr = 3e-4
@@ -222,27 +228,27 @@ def train():
     
     
     val_split = 0.1  
-    val_every = 1 
+    val_every = 1  
     
-    
+   
     save_dir = Path("checkpoints")
     save_dir.mkdir(exist_ok=True)
-    save_every = 5  
+    save_every = 5 
     resume_from = None  
     
     # ========== Load Data ==========
     print("Loading data...")
     data = torch.load("data.pth")
     sequences = data["x"]
-    vocab = data["vocab"]
-    tokenizer = data["tokenizer"]
-    pad_idx = tokenizer["<PAD>"]
+    vocab = data["vocab_size"]
+    tokenizer = tiktoken.get_encoding("cl100k_base")
+    pad_idx = tokenizer.eot_token
     
-    config["vocab_size"] = len(vocab)
-    print(f"Vocab size: {len(vocab)}")
+    config["vocab_size"] = vocab
+    print(f"Vocab size: {vocab}")
     print(f"Total sequences: {len(sequences)}")
     
-    
+   
     dataset = LanguageModelDataset(sequences, pad_idx)
     
     
@@ -256,7 +262,7 @@ def train():
     
     print(f"Train size: {train_size}, Val size: {val_size}")
     
-    
+  
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -294,7 +300,7 @@ def train():
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=lr,
-        betas=(0.9, 0.95),  
+        betas=(0.9, 0.95), 
         weight_decay=weight_decay
     )
     
@@ -310,7 +316,7 @@ def train():
         min_lr=lr * 0.1
     )
     
-    
+   
     mask_cache = {}
     
     
@@ -336,7 +342,7 @@ def train():
         print(f"Epoch {epoch + 1}/{epochs}")
         print(f"{'='*50}")
         
-        
+      
         train_metrics = train_epoch(
             model, train_loader, optimizer, scheduler, criterion,
             scaler, device, mask_cache, gradient_accumulation_steps, max_grad_norm
@@ -346,7 +352,7 @@ def train():
               f"Throughput: {train_metrics['tokens_per_sec']:.0f} tokens/s | "
               f"Time: {train_metrics['time']:.1f}s")
         
-        
+       
         if (epoch + 1) % val_every == 0:
             print("\nValidating...")
             val_metrics = evaluate(model, val_loader, criterion, device, mask_cache)

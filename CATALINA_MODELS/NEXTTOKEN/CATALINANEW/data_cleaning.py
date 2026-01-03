@@ -119,17 +119,12 @@ def get_language_model_data(max_seq_len):
 
 
 if __name__ == "__main__":
-    sentence = "Curiosity is what pushes people beyond what they already know. It begins with a simple question and grows through exploration. Mistakes along the way are not failures but markers of learning. Over time, curiosity builds confidence and understanding. That is how ideas slowly become discoveries."
+    
+    max_seq_len = 72
 
-    sentence = sentence.lower()
-    print(tokenize_with_tiktoken(sentence)[1])
-    print(split_string_with_special_characters(sentence))
+    x, vocab, tokenizer = get_language_model_data(max_seq_len)
 
-    print(len(tokenize_with_tiktoken(sentence)[1]))
-    print(len(split_string_with_special_characters(sentence)))
-    # max_seq_len = 72
-
-    # x, vocab, tokenizer = get_language_model_data(max_seq_len)
+    print(x.shape)
 
     # torch.save(
     #     {
