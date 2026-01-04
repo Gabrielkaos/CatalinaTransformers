@@ -191,6 +191,135 @@ def process_instruction_dataset_tiktoken(
     skipped = 0
 
     """
+    #special for Python Codes
+    """
+    
+    print(f"Loading dataset: Arjun-G-Ravi/Python-codes")
+    dataset = load_dataset("Arjun-G-Ravi/Python-codes", split=split)
+    print(f"\nProcessing {len(dataset)} examples...")
+    for idx, data in enumerate(tqdm(dataset)):
+        try:
+            instruction = data["question"]
+            output = data["code"]
+            formatted_text = format_simple(
+                instruction,None,output
+            )
+            
+            # token_ids = tokenizer.encode(formatted_text)
+            _,bag_of_words = tokenize_with_tiktoken(unidecode(formatted_text.strip()))
+            copy_only = bag_of_words.copy()
+            
+            if len(bag_of_words) > (max_seq_len - 1):
+                skipped += 1
+                continue
+            
+            
+            # padded = token_ids + [tokenizer.eot_token] * (max_seq_len - len(token_ids))
+            bag_of_words = bag_of_words + ["<EOS>"] + ["<PAD>"] * (max_seq_len - len(bag_of_words))
+            sequences.append(bag_of_words)
+            
+            
+            if idx == 0:
+                print(f"\n{'='*60}")
+                print("EXAMPLE FORMATTED TEXT:")
+                print(f"{'='*60}")
+                print(formatted_text[:max_seq_len])
+                print(f"{'='*60}")
+                print(f"Token count: {len(copy_only)}")
+                print(f"{'='*60}\n")
+        
+        except Exception as e:
+            print(f"Error processing example {idx}: {e}")
+            skipped += 1
+            continue
+
+    """
+    """
+
+    """
+    #special for non alpaca mathqa filtered
+    """
+    
+    print(f"Loading dataset: dtruong46me/mathqa-python")
+    dataset = load_dataset("dtruong46me/mathqa-python",split=split)
+    dataset1 = load_dataset("dtruong46me/mathqa-python",split="test")
+    print(f"\nProcessing {len(dataset1)} examples...")
+    for idx, data in enumerate(tqdm(dataset1)):
+        try:
+            instruction = data["text"]
+            output = data["code"]
+            formatted_text = format_simple(
+                instruction,None,output
+            )
+            
+            # token_ids = tokenizer.encode(formatted_text)
+            _,bag_of_words = tokenize_with_tiktoken(unidecode(formatted_text.strip()))
+            copy_only = bag_of_words.copy()
+            
+            if len(bag_of_words) > (max_seq_len - 1):
+                skipped += 1
+                continue
+            
+            
+            # padded = token_ids + [tokenizer.eot_token] * (max_seq_len - len(token_ids))
+            bag_of_words = bag_of_words + ["<EOS>"] + ["<PAD>"] * (max_seq_len - len(bag_of_words))
+            sequences.append(bag_of_words)
+            
+            
+            if idx == 0:
+                print(f"\n{'='*60}")
+                print("EXAMPLE FORMATTED TEXT:")
+                print(f"{'='*60}")
+                print(formatted_text[:max_seq_len])
+                print(f"{'='*60}")
+                print(f"Token count: {len(copy_only)}")
+                print(f"{'='*60}\n")
+        
+        except Exception as e:
+            print(f"Error processing example {idx}: {e}")
+            skipped += 1
+            continue
+    print(f"\nProcessing {len(dataset)} examples...")
+    for idx, data in enumerate(tqdm(dataset)):
+        try:
+            instruction = data["text"]
+            output = data["code"]
+            formatted_text = format_simple(
+                instruction,None,output
+            )
+            
+            # token_ids = tokenizer.encode(formatted_text)
+            _,bag_of_words = tokenize_with_tiktoken(unidecode(formatted_text.strip()))
+            copy_only = bag_of_words.copy()
+            
+            if len(bag_of_words) > (max_seq_len - 1):
+                skipped += 1
+                continue
+            
+            
+            # padded = token_ids + [tokenizer.eot_token] * (max_seq_len - len(token_ids))
+            bag_of_words = bag_of_words + ["<EOS>"] + ["<PAD>"] * (max_seq_len - len(bag_of_words))
+            sequences.append(bag_of_words)
+            
+            
+            if idx == 23:
+                print(f"\n{'='*60}")
+                print("EXAMPLE FORMATTED TEXT:")
+                print(f"{'='*60}")
+                print(formatted_text[:max_seq_len])
+                print(f"{'='*60}")
+                print(f"Token count: {len(copy_only)}")
+                print(f"{'='*60}\n")
+        
+        except Exception as e:
+            print(f"Error processing example {idx}: {e}")
+            skipped += 1
+            continue
+
+    """
+    """
+#-----------------------------------------------------------------
+    """
     #special for non alpaca 18k
     """
     
@@ -223,7 +352,7 @@ def process_instruction_dataset_tiktoken(
                 print(f"\n{'='*60}")
                 print("EXAMPLE FORMATTED TEXT:")
                 print(f"{'='*60}")
-                print(formatted_text[:500])
+                print(formatted_text[:max_seq_len])
                 print(f"{'='*60}")
                 print(f"Token count: {len(copy_only)}")
                 print(f"{'='*60}\n")
@@ -292,7 +421,7 @@ def process_instruction_dataset_tiktoken(
                 print(f"\n{'='*60}")
                 print("EXAMPLE FORMATTED TEXT:")
                 print(f"{'='*60}")
-                print(formatted_text[:500])
+                print(formatted_text[:max_seq_len])
                 print(f"{'='*60}")
                 print(f"Token count: {len(copy_only)}")
                 print(f"{'='*60}\n")
@@ -330,7 +459,7 @@ if __name__ == "__main__":
         split="train"
     )
     
-    file_name = "data_both.pth"
+    file_name = "data_triple.pth"
     torch.save({
         "x": x,
         "tokenizer": tokenizer,  
@@ -345,11 +474,11 @@ if __name__ == "__main__":
     print(f"\nTikToken Data:")
     print(f"  Sequences: {data['x'].shape}")
     print(f"  Vocab size: {len(data['vocab'])}")
-    print(f"  Sequence shape: {data['x'][0].shape}")
+    print(f"  Sequence shape: {data['x'][2].shape}")
     
     
     tokenizer = data["tokenizer"]
-    first_seq = data['x'][0]
+    first_seq = data['x'][2]
 
     # first_seq = first_seq[first_seq != tokenizer["<PAD>"]]
     # tokenizer = tiktoken.get_encoding("cl100k_base")

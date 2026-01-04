@@ -209,7 +209,13 @@ def train():
     
    
     config = {
-        "vocab_size": None,  
+        "vocab_size": None,
+        "d_model":768,
+        "n_layers":10,
+        "n_heads":768//64,
+        "dff":768*4,
+        "dropout":0.2,  
+        
     }
     
    
