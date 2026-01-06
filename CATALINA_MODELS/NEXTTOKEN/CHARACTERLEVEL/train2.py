@@ -7,7 +7,6 @@ import time
 from pathlib import Path
 from tqdm import tqdm
 from MODEL_TRANSFORMER import build_transformer_next_token
-import tiktoken
 
 class LanguageModelDataset(Dataset):
     def __init__(self, sequences, pad_idx):
@@ -210,12 +209,11 @@ def train():
    
     config = {
         "vocab_size": None,
-        "d_model":768,
+        "d_model":640,
         "n_layers":10,
-        "n_heads":768//64,
-        "dff":768*4,
-        "dropout":0.2,  
-        
+        "n_heads":640//64,
+        "dff":640*4,
+        "dropout":0.2
     }
     
    
@@ -234,12 +232,12 @@ def train():
    
     save_dir = Path("checkpoints")
     save_dir.mkdir(exist_ok=True)
-    save_every = 1 
+    save_every = 5 
     resume_from = None  
     
     # ========== Load Data ==========
     print("Loading data...")
-    data = torch.load("data_tiktoken.pth")
+    data = torch.load("data.pth")
     sequences = data["x"]
     vocab = data["vocab"]
     tokenizer = data["tokenizer"]

@@ -1,8 +1,8 @@
 import torch
 import torch.nn.functional as F
-from data_cleaning2 import tokenize_with_tiktoken
 from MODEL_TRANSFORMER import build_transformer_next_token
 from unidecode import unidecode
+from tqdm import tqdm
 
 def causal_mask(size, device):
     
@@ -59,7 +59,7 @@ def generate(
     
     model.eval()
     
-    _,bow = tokenize_with_tiktoken(unidecode(prompt.strip()))
+    bow = list(unidecode(prompt))
     token_ids = [tokenizer.get(i,tokenizer.get("<PAD>")) for i in bow]
     
    
@@ -67,7 +67,7 @@ def generate(
     
     predicted = []
     
-    for step in range(max_len):
+    for step in tqdm(range(max_len)):
         current_len = x.size(1)
         
         
@@ -104,13 +104,12 @@ def generate(
         if next_token.item() == tokenizer.get("<EOS>"):
             break
         
-        predicted.append(next_token.item())
         
         x = torch.cat([x, next_token], dim=1)
     
     
     decoder = {idx:char for char,idx in tokenizer.items()}
-    decoded_tokens = "".join(decoder[i] for i in predicted)
+    decoded_tokens = "".join(decoder[i] for i in x[0].tolist())
 
 
     return decoded_tokens
@@ -120,19 +119,18 @@ if __name__ == "__main__":
     print(f"Device: {device}")
     
     
-    data = torch.load("data_triple.pth", map_location=device)
+    data = torch.load("data.pth", map_location=device)
     vocab = data["vocab"]
     tokenizer = data["tokenizer"]
     
     
     config = {
         "vocab_size": None,
-        "d_model":768,
+        "d_model":640,
         "n_layers":10,
-        "n_heads":768//64,
-        "dff":768*4,
-        "dropout":0.2,  
-        
+        "n_heads":640//64,
+        "dff":640*4,
+        "dropout":0.2
     }
     
     config["vocab_size"] = len(vocab)
@@ -140,7 +138,7 @@ if __name__ == "__main__":
     print(f"Model vocab:{model.embed.vocab_size}")
     print(f"Data vocab:{len(vocab)}")
     try:
-        checkpoint = torch.load("checkpoints/best_model.pth", map_location=device)
+        checkpoint = torch.load("best_model.pth", map_location=device)
         state_dict = checkpoint["model_state"]
 
         
@@ -179,21 +177,8 @@ if __name__ == "__main__":
     # print(output)
     while True:
         print("\n\n")
-        instruction = input("instruction:")
-        if instruction=="quit":break
-        input1 = input("input:")
-
-        if input1 is not None:
-            prompt = f"""
-Instruction: {instruction}
-Input: {input1}
-Response:
-                """
-        else:
-            prompt = f"""
-Instruction: {instruction}
-Response:
-                """
+        prompt = input("prompt:")
+        
         
         
         # print("\n=== Sampling (temp=0.8, top_p=0.9) ===")
@@ -201,11 +186,10 @@ Response:
         print("response:\n")
         output = generate(
             model, tokenizer, prompt,
-            max_len=500,seq_len=256,
+            max_len=300,seq_len=512,
             device=device,
-            temperature=0.8,
+            temperature=0.0,
             top_p=0.9,
             repetition_penalty=1.2
         )
         print(output)
-    

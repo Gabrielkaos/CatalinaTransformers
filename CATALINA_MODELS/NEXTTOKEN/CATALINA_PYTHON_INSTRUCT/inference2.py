@@ -208,4 +208,3 @@ Response:
             repetition_penalty=1.2
         )
         print(output)
-    
