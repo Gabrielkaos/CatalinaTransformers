@@ -17,6 +17,10 @@ model.eval()
 
 
 print("Catalina Chatbot based on SMolLM2 (type 'exit' to quit)\n")
+messages = [
+        {"role": "system", "content": "You are a helpful AI assistant named Catalina. Answer directly and precisely with no emotion."},
+        
+    ]
 
 while True:
     user_input = input("You: ").strip()
@@ -24,10 +28,10 @@ while True:
         break
 
     # Add user message to memory
-    messages = [
-        {"role": "system", "content": "You are a helpful AI assistant named Catalina. Answer directly and precisely with no emotion."},
-        {"role": "user", "content": user_input}
-    ]
+
+    my_message = {"role": "user", "content": user_input}
+    messages.append(my_message)
+    
 
     # Build model input using chat template
     input_ids = tokenizer.apply_chat_template(
@@ -59,4 +63,4 @@ while True:
     print(f"SmolLM: {assistant_reply}\n")
 
     # Save assistant reply to memory
-    # messages.append({"role": "assistant", "content": assistant_reply})
+    messages.append({"role": "assistant", "content": assistant_reply})

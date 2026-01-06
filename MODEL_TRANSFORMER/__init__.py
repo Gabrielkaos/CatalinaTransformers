@@ -219,8 +219,10 @@ class FeedForwardNet(nn.Module):
 
 
 class MultiHeadBlock(nn.Module):
-    def __init__(self, d_model, n_heads, dropout, use_flash_attn=False):
+    def __init__(self, d_model, n_heads, dropout, use_flash_attn=False, is_causal=True):
         super().__init__()
+
+        self.is_causal=is_causal
 
         self.d_model = d_model
         self.n_heads = n_heads
@@ -288,15 +290,15 @@ class MultiHeadBlock(nn.Module):
         # Use Flash Attention if available (PyTorch 2.0+)
         if self.use_flash_attn:
             # Convert mask format for scaled_dot_product_attention
-            # attn_mask = None
-            # if mask is not None:
-            #     attn_mask = mask.bool() if mask.dtype != torch.bool else mask
+            attn_mask = None
+            if not self.is_causal and mask is not None:
+                attn_mask = mask.bool() if mask.dtype != torch.bool else mask
             
             x = torch.nn.functional.scaled_dot_product_attention(
                 query, key, value, 
-                attn_mask=None,
+                attn_mask=attn_mask,
                 dropout_p=self.dropout.p if self.training else 0.0,
-                is_causal=True  # We provide our own mask
+                is_causal=self.is_causal  # We provide our own mask
             )
         else:
             # Fallback to manual attention
@@ -531,8 +533,8 @@ def build_transformer_next_token(
 
 
 #encoder only
-def build_transformer_encoder(src_vocab_size, trgt_vocab_size, src_seq_length, d_model=512, n_layers=6,
-                          n_heads=8, dropout=0.1, dff=2048, device=None):
+def build_transformer_encoder(src_vocab_size, num_classes, d_model=512, n_layers=6,
+                          n_heads=8, dropout=0.1, dff=2048, use_flash_attention=True, device=None):
     # create embed layers
     src_embed = InputEmbedding(d_model, src_vocab_size)
 
@@ -542,16 +544,16 @@ def build_transformer_encoder(src_vocab_size, trgt_vocab_size, src_seq_length, d
     # encoder_blocks
     encoder_blocks = []
     for _ in range(n_layers):
-        encoder_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout)
-        feed_f_block = FeedForwardNet(d_model, dff, dropout)
-        encoder_block = EncoderBlock(encoder_self_attention_block, feed_f_block, dropout, d_model)
+        encoder_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout, use_flash_attn=use_flash_attention, is_causal=False)
+        feed_f_block = FeedForwardNet(d_model, dff, dropout, activation="gelu",bias=False)
+        encoder_block = EncoderBlock(encoder_self_attention_block, feed_f_block, dropout, d_model,bias=False)
         encoder_blocks.append(encoder_block)
 
     # encoder decoder
-    encoder = Encoder(nn.ModuleList(encoder_blocks),d_model)
+    encoder = Encoder(nn.ModuleList(encoder_blocks),d_model, bias=False)
 
     # project layer
-    projection_layer = ProjectionLayer(d_model, trgt_vocab_size)
+    projection_layer = ProjectionLayer(d_model, num_classes)
 
     transformer = TransformerEncoderOnly(encoder, src_embed, projection_layer)
 

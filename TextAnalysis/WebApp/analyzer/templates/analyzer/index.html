@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Analyzer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        textarea, input, select {
+            margin-bottom: 10px;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 10px;
+            width: 60%;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-btn:hover,
+        .close-btn:focus {
+            color: #000;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Text Analyzer @Catalina 322M Params</h1>
+    <form id="analyze-form">
+        <textarea name="text" rows="5" cols="40" placeholder="Enter text here..."></textarea>
+        <select name="analysis_type">
+            <option value="emotions">Emotions(any sentence)</option>
+        </select>
+        <button type="submit">Analyze</button>
+    </form>
+
+    <h2>Check Paragraph if Ai Generated</h2>
+    <form id="ai-form">
+        <textarea name="text" rows="5" cols="40" placeholder="Enter text here(preferably 3 sentences or more)..."></textarea>
+        <button type="submit">Check Paragraph</button>
+    </form>
+
+    <h2>Check URL for Phishing</h2>
+    <form id="phishing-form">
+        <input type="url" name="url" placeholder="Enter URL here...">
+        <button type="submit">Check URL</button>
+    </form>
+
+    <h2>Sentence Similarity</h2>
+    <form id="plagiarism-form">
+        <textarea name="text1" rows="3" cols="30" placeholder="Enter first text..."></textarea>
+        <textarea name="text2" rows="3" cols="30" placeholder="Enter second text..."></textarea>
+        <button type="submit">Check Plagiarism</button>
+    </form>
+
+    <!-- Modal -->
+    <div id="result-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" id="close-modal">&times;</span>
+            <div id="modal-body">
+                <!-- Results will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Show Modal
+        function showModal(content) {
+            const modal = document.getElementById('result-modal');
+            const modalBody = document.getElementById('modal-body');
+            modalBody.innerHTML = content;
+            modal.style.display = 'block';
+        }
+
+        // Hide Modal
+        function closeModal() {
+            const modal = document.getElementById('result-modal');
+            modal.style.display = 'none';
+        }
+
+        // Close modal on clicking close button or outside the modal content
+        document.getElementById('close-modal').onclick = closeModal;
+        window.onclick = function (event) {
+            const modal = document.getElementById('result-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+
+        // Form Submission Handlers
+        document.getElementById('analyze-form').onsubmit = async function (e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const response = await fetch('{% url "analyze_text" %}', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            const data = await response.json();
+            let content = '<h2>Analysis Results</h2>';
+            let count = 1;
+            for (const [key, value] of Object.entries(data)) {
+                if (count <= 2) {
+                    content += `<p><strong>${key}:</strong> ${value}</p>`;
+                }else{
+                    if (count === 3) {
+                        content += '<hr>';
+                        content += '<ul>'
+                    }
+                    content += `<li>${key}: ${value}</li>`;
+                }
+                
+                count++;
+            }
+            content += '</ul>';
+            showModal(content);
+        };
+
+        document.getElementById('phishing-form').onsubmit = async function (e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const response = await fetch('{% url "check_phishing" %}', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            const data = await response.json();
+            let content = '<h2>Analysis Results</h2>';
+            let count = 1;
+            for (const [key, value] of Object.entries(data)) {
+                if (count <= 2) {
+                    content += `<p><strong>${key}:</strong> ${value}</p>`;
+                }else{
+                    if (count === 3) {
+                        content += '<hr>';
+                        content += '<ul>'
+                    }
+                    content += `<li>${key}: ${value}</li>`;
+                }
+                
+                count++;
+            }
+            content += '</ul>';
+            showModal(content);
+        };
+
+        document.getElementById('ai-form').onsubmit = async function (e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const response = await fetch('{% url "check_ai" %}', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            const data = await response.json();
+            let content = '<h2>Analysis Results</h2>';
+            let count = 1;
+            for (const [key, value] of Object.entries(data)) {
+                if (count <= 2) {
+                    content += `<p><strong>${key}:</strong> ${value}</p>`;
+                }else{
+                    if (count === 3) {
+                        content += '<hr>';
+                        content += '<ul>'
+                    }
+                    content += `<li>${key}: ${value}</li>`;
+                }
+                
+                count++;
+            }
+            content += '</ul>';
+            showModal(content);
+        };
+
+        document.getElementById('plagiarism-form').onsubmit = async function (e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const response = await fetch('{% url "check_plagiarism" %}', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            const data = await response.json();
+            let content = '<h2>Analysis Results</h2>';
+            let count = 1;
+            for (const [key, value] of Object.entries(data)) {
+                if (count <= 3) {
+                    content += `<p><strong>${key}:</strong> ${value}</p>`;
+                }else{
+                    if (count === 4) {
+                        content += '<hr>';
+                        content += '<ul>'
+                    }
+                    content += `<li>${key}: ${value}</li>`;
+                }
+                
+                count++;
+            }
+            content += '</ul>';
+            showModal(content);
+        };
+    </script>
+</body>
+</html>
