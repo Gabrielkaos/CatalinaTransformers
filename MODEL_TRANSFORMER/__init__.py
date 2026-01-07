@@ -472,13 +472,21 @@ class TransformerEncoderOnly(nn.Module):
         # self.src_pos = src_pos
         self.proj = projection_layer
 
-    def encode(self, src, src_mask):
-        src = self.src_embed(src)
-        # src = self.src_pos(src)
-        return self.encoder(src, src_mask)
-
-    def project(self, x):
+    def forward(self, x, mask):
+        x = self.src_embed(x)
+        # x = self.src_pos(x)
+        x = self.encoder(x, mask)[:,0,:]
         return self.proj(x)
+
+
+
+    # def encode(self, src, src_mask):
+    #     src = self.src_embed(src)
+    #     # src = self.src_pos(src)
+    #     return self.encoder(src, src_mask)
+
+    # def project(self, x):
+    #     return self.proj(x)
     
 
 
@@ -533,10 +541,10 @@ def build_transformer_next_token(
 
 
 #encoder only
-def build_transformer_encoder(src_vocab_size, num_classes, d_model=512, n_layers=6,
-                          n_heads=8, dropout=0.1, dff=2048, use_flash_attention=True, device=None):
+def build_transformer_encoder(vocab_size, num_classes, d_model=512, n_layers=6,
+                          n_heads=8, dropout=0.1, dff=2048, use_flash_attn=True, device=None):
     # create embed layers
-    src_embed = InputEmbedding(d_model, src_vocab_size)
+    src_embed = InputEmbedding(d_model, vocab_size)
 
     # position encoders
     # src_pos = PositionalEncoding(d_model, src_seq_length, dropout, device=device)
@@ -544,7 +552,7 @@ def build_transformer_encoder(src_vocab_size, num_classes, d_model=512, n_layers
     # encoder_blocks
     encoder_blocks = []
     for _ in range(n_layers):
-        encoder_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout, use_flash_attn=use_flash_attention, is_causal=False)
+        encoder_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout, use_flash_attn=use_flash_attn, is_causal=False)
         feed_f_block = FeedForwardNet(d_model, dff, dropout, activation="gelu",bias=False)
         encoder_block = EncoderBlock(encoder_self_attention_block, feed_f_block, dropout, d_model,bias=False)
         encoder_blocks.append(encoder_block)
