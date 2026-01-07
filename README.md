@@ -8,5 +8,6 @@
 
 
 ## Notes
-* MODEL_TRANSFORMER code from Umar Jamil(watch his videos, very informative)
+* MODEL_TRANSFORMER code originally from Umar Jamil(watch his videos, very informative)
 * Also from Andrej Karpathy
+* I just modified them as time goes by 
