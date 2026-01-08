@@ -1,3 +1,8 @@
 *.pth
 *_pycache__
 *.csv
+/CATALINA-QWEN-0.5B/general/general_chat/*
+*.dat
+
+/CATALINA-QWEN-1B/general/chat_model/*
+/CATALINA-QWEN-1B/general/reason_chat/*
