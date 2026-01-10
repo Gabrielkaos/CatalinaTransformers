@@ -60,7 +60,7 @@ while True:
         skip_special_tokens=True
     ).strip()
 
-    print(f"SmolLM: {assistant_reply}\n")
+    print(f"\nSmolLM: {assistant_reply}\n")
 
     # Save assistant reply to memory
     messages.append({"role": "assistant", "content": assistant_reply})

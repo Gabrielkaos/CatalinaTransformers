@@ -2,7 +2,7 @@
 *_pycache__
 *.csv
 /CATALINA-QWEN-0.5B/general/general_chat/*
+/CATALINA-QWEN-0.5B/algebra/algebra/*
 *.dat
 
-/CATALINA-QWEN-1B/general/chat_model/*
-/CATALINA-QWEN-1B/general/reason_chat/*
+/CATALINA-GPT/general/feature_extract/*

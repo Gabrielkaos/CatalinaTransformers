@@ -49,7 +49,8 @@ def generate_response(model, tokenizer, prompt, max_length=128, skip_special=Fal
             top_p=top_p,
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id, 
-            repetition_penalty=1.1
+            repetition_penalty=1.1,
+            no_repeat_ngram_size=3
         )
     
     response = tokenizer.decode(outputs[0], skip_special_tokens=skip_special)
@@ -57,28 +58,23 @@ def generate_response(model, tokenizer, prompt, max_length=128, skip_special=Fal
         response = response.split(tokenizer.eos_token)[0]
     return response
 
-
 # Main execution
 if __name__ == "__main__":
 
-    model_dir = "./general_chat"
+    model_dir = "./algebra"
     base_model_name = "Qwen/Qwen2.5-0.5B"
 
     
 
     model, tokenizer = load_trained_model(model_dir, base_model_name)
+    
     while True:
-        prompt1 = input("Instruction:")
-        if prompt1=="quit":
-            break
-        prompt2 = input("Input:")
-        if not prompt2:
-            prompt = f"### Instruction:\n{prompt1}\n\n### Response:\n"
-        else:
-            prompt = f"### Instruction:\n{prompt1}\n\n### Input:\n{prompt2}\n\n### Response:\n"
-        
-        response = generate_response(model, tokenizer, prompt, skip_special=False, sample=False, max_length=512)
-        print(f"\nOutput:{response}")
+        equation = input("Equation:")
+        solve_for = input("Solve for:")
+        prompt = f"Solve[{equation},{solve_for}] == {'{{'}"
+        print(prompt)
+        response = generate_response(model, tokenizer, prompt, max_length=512)
+        print(f"\nOutput:{response.split("] == ")[1]}")
         print()
 
     # print(f"EOS token: {tokenizer.eos_token}")

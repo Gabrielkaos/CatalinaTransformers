@@ -4,9 +4,9 @@ from transformers import (
     AutoModelForCausalLM, 
     AutoTokenizer,
     TrainingArguments,
-    Trainer,
-    DataCollatorForLanguageModeling
+    Trainer
 )
+from transformers import default_data_collator
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 from peft import PeftModel
@@ -14,11 +14,10 @@ from peft import PeftModel
 
 def setup_model_for_chat_finetuning(model_name):
     
-    
-    
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     tokenizer.padding_side = "right"
+    model.resize_token_embeddings(len(tokenizer))
     
     
     
@@ -55,8 +54,6 @@ def setup_model_for_chat_finetuning(model_name):
 
 
 def prepare_chat_dataset(tokenizer, max_len=512, dataset_name="tatsu-lab/alpaca"):
-   
-    
     
     dataset = load_dataset(dataset_name, split="train")
     
@@ -96,6 +93,64 @@ def prepare_chat_dataset(tokenizer, max_len=512, dataset_name="tatsu-lab/alpaca"
     
     return tokenized_dataset
 
+def prepare_chat_dataset1(tokenizer, max_len=512, dataset_name="tatsu-lab/alpaca"):
+    dataset = load_dataset(dataset_name, split="train")
+
+    def tokenize_and_mask(example):
+        instruction = example["instruction"]
+        input_text = example.get("input", "")
+        output = example["output"]
+
+        if input_text:
+            prompt = (
+                f"### Instruction:\n{instruction}\n\n"
+                f"### Input:\n{input_text}\n\n"
+                f"### Response:\n"
+            )
+        else:
+            prompt = (
+                f"### Instruction:\n{instruction}\n\n"
+                f"### Response:\n"
+            )
+
+        full_text = prompt + output + tokenizer.eos_token
+
+        tokenized = tokenizer(
+            full_text,
+            truncation=True,
+            max_length=max_len,
+            padding=False,
+        )
+
+        input_ids = tokenized["input_ids"]
+
+        # Tokenize prompt alone to find cutoff
+        prompt_ids = tokenizer(
+            prompt,
+            truncation=True,
+            max_length=max_len,
+            padding=False,
+        )["input_ids"]
+
+        labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+
+        # Truncate labels to match input_ids length
+        labels = labels[:len(input_ids)]
+
+        return {
+            "input_ids": input_ids,
+            "attention_mask": tokenized["attention_mask"],
+            "labels": labels,
+        }
+
+    dataset = dataset.map(
+        tokenize_and_mask,
+        remove_columns=dataset.column_names,
+        num_proc=4,
+    )
+
+    return dataset
+
 
 def train_chat_model(model, tokenizer, dataset, output_dir="./chat_model"):
 
@@ -105,7 +160,7 @@ def train_chat_model(model, tokenizer, dataset, output_dir="./chat_model"):
         num_train_epochs=3,
         per_device_train_batch_size=10,
         gradient_accumulation_steps=4,
-        learning_rate=3e-5,
+        learning_rate=2e-4,
         fp16=True,
         logging_steps=10,
         save_strategy="epoch",
@@ -113,17 +168,17 @@ def train_chat_model(model, tokenizer, dataset, output_dir="./chat_model"):
         optim="paged_adamw_8bit",  
     )
     
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=tokenizer,
-        mlm=False,
-        pad_to_multiple_of=8
-    )
+    # data_collator = DataCollatorForLanguageModeling(
+    #     tokenizer=tokenizer,
+    #     mlm=False,
+    #     pad_to_multiple_of=8
+    # )
     
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=dataset,
-        data_collator=data_collator,
+        data_collator=default_data_collator,
     )
     
     print("Starting training...")
@@ -165,14 +220,12 @@ def load_trained_model(model_dir="./chat_model", base_model_name="Qwen/Qwen2.5-0
 
 
 if __name__ == "__main__":
-    print("Setting up model for chat fine-tuning...")
+    # print("Setting up model for chat fine-tuning...")
 
     model_dir = "./general_chat"
     base_model_name = "Qwen/Qwen2.5-0.5B"
 
     # model, tokenizer = load_trained_model(model_dir, base_model_name)
-
-    
     
     model, tokenizer = setup_model_for_chat_finetuning(
         model_name=base_model_name
@@ -180,12 +233,18 @@ if __name__ == "__main__":
     
     
     print("\nPreparing chat dataset...")
-    dataset = prepare_chat_dataset(tokenizer)
-    
+    dataset = prepare_chat_dataset1(tokenizer)
+
+    # see data
+    sample = dataset[0]
+    for tid, label in zip(sample["input_ids"], sample["labels"]):
+        token = tokenizer.decode([tid])
+        print(f"{token!r:15} -> {label}")
+        
    
-    print("\nStarting fine-tuning...")
-    model = train_chat_model(model, tokenizer, dataset,output_dir=model_dir)
-    print("Done training.")
+    # print("\nStarting fine-tuning...")
+    # model = train_chat_model(model, tokenizer, dataset,output_dir=model_dir)
+    # print("Done training.")
     
     
     # print("\nTesting generation...")
