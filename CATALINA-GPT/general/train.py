@@ -47,6 +47,8 @@ def setup_model_for_chat_finetuning(model_name):
         dtype=torch.float16,
         device_map="auto"
     )
+    model.config.pad_token_id = tokenizer.pad_token_id
+    model.config.eos_token_id = tokenizer.eos_token_id
 
     # model.resize_token_embeddings(len(tokenizer))
     

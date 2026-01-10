@@ -7,7 +7,7 @@ from transformers import (
 )
 from peft import PeftModel
 
-def load_trained_model(model_dir="./chat_model", base_model_name="Qwen/Qwen2.5-0.5B"):
+def load_trained_model(model_dir, base_model_name):
     
     print(f"Loading trained model from {model_dir}...")
     
@@ -79,7 +79,8 @@ if __name__ == "__main__":
         )
         
         response = generate_response(model, tokenizer, prompt, skip_special=False, sample=True, max_length=1024)
-        print(f"\nOutput:{response}")
+        # print(f"\nOutput:{response.split("### Answer:\n")[1]}")
+        print(response)
         print()
 
     # print(f"EOS token: {tokenizer.eos_token}")

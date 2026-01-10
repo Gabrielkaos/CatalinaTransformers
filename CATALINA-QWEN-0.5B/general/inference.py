@@ -7,7 +7,7 @@ from transformers import (
 )
 from peft import PeftModel
 
-def load_trained_model(model_dir="./chat_model", base_model_name="Qwen/Qwen2.5-0.5B"):
+def load_trained_model(model_dir, base_model_name):
     
     print(f"Loading trained model from {model_dir}...")
     
@@ -22,7 +22,6 @@ def load_trained_model(model_dir="./chat_model", base_model_name="Qwen/Qwen2.5-0
         trust_remote_code=True,
         offload_folder="offload"
     )
-    
     
     model = PeftModel.from_pretrained(
         base_model, 
@@ -49,7 +48,8 @@ def generate_response(model, tokenizer, prompt, max_length=128, skip_special=Fal
             top_p=top_p,
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id, 
-            repetition_penalty=1.1
+            repetition_penalty=1.1,
+            
         )
     
     response = tokenizer.decode(outputs[0], skip_special_tokens=skip_special)
@@ -61,10 +61,8 @@ def generate_response(model, tokenizer, prompt, max_length=128, skip_special=Fal
 # Main execution
 if __name__ == "__main__":
 
-    model_dir = "./general_chat"
+    model_dir = "./general_chat2"
     base_model_name = "Qwen/Qwen2.5-0.5B"
-
-    
 
     model, tokenizer = load_trained_model(model_dir, base_model_name)
     while True:
@@ -78,7 +76,7 @@ if __name__ == "__main__":
             prompt = f"### Instruction:\n{prompt1}\n\n### Input:\n{prompt2}\n\n### Response:\n"
         
         response = generate_response(model, tokenizer, prompt, skip_special=False, sample=False, max_length=512)
-        print(f"\nOutput:{response}")
+        print(f"\nOutput:{response.split("### Response:\n")[1]}")
         print()
 
     # print(f"EOS token: {tokenizer.eos_token}")
