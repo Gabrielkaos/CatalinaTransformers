@@ -28,8 +28,7 @@ def generate(
             x = x[:, -seq_len:]
             current_len = seq_len
         
-        mask = None
-        logits = model(x, mask)
+        logits = model(x)
         logits = logits[:, -1, :]
 
         probs = F.softmax(logits,dim=-1)
@@ -42,9 +41,9 @@ def generate(
         x = torch.cat((x,xcol),dim=1)
         
     
-    x = x[0][len(token_ids):].tolist()
+    # x = x[0][len(token_ids):].tolist()
 
-    return tokenizer.decode(x)
+    return tokenizer.decode(x[0].tolist())
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -72,7 +71,7 @@ if __name__ == "__main__":
     
     print(f"Data vocab:{vocab}")
     try:
-        data_model  =  torch.load("gpt.pth")
+        data_model: dict  =  torch.load("gpt.pth")
         model.load_state_dict(data_model["model_state"])
         """
         # checkpoint = torch.load("checkpoints/best_model.pth", map_location=device)
@@ -152,11 +151,13 @@ if __name__ == "__main__":
     print(f"Total parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
 
+    
+
 
     print("\n=== Generating ===")
     output = generate(
-        model, tokenizer, "Hello I am Catalina, ", 
-        max_len=256,
+        model, tokenizer, "Hello I am a language model", 
+        max_len=30,
         device=device,
     )
     print(output)
