@@ -176,6 +176,7 @@ if __name__ == "__main__":
         model.state_dict()["proj.projection_layer.weight"].copy_(sd_hf["lm_head.weight"])
 
         print(*model.state_dict().keys(),sep="\n")
+        print()
         print("Model loaded successfully!")
 
     except FileNotFoundError:

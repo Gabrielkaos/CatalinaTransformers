@@ -308,6 +308,82 @@ class MultiHeadBlock(nn.Module):
         return self.w_o(x)
 
 
+class AttentionForDecoderOnly(nn.Module):
+    def __init__(self, d_model, n_heads, dropout, use_flash_attn=False, is_causal=True):
+        super().__init__()
+
+        self.is_causal=is_causal
+
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.dropout = nn.Dropout(dropout)
+
+        assert d_model % n_heads == 0, "d_model mod n_heads not equal to zero"
+
+        self.d_k = d_model // n_heads
+
+        self.rope = RotaryEmbedding(self.d_k)
+
+
+        self.c_attn = nn.Linear(d_model, 3 * d_model)
+
+        self.w_o = nn.Linear(d_model, d_model)
+
+        self.use_flash_attn = use_flash_attn and hasattr(torch.nn.functional, 'scaled_dot_product_attention')
+
+
+    @staticmethod
+    def attention(query, key, value, mask, dropout: nn.Dropout):
+        d_k = query.shape[-1]
+
+        attention_scores = (query @ key.transpose(-2, -1)) / math.sqrt(d_k)
+
+        if mask is not None:
+            attention_scores.masked_fill_(mask == 0, -1e9)
+
+        attention_scores = attention_scores.softmax(dim=-1)
+
+        if dropout is not None:
+            attention_scores = dropout(attention_scores)
+
+        return attention_scores @ value
+
+    def forward(self, x, mask):
+
+        qkv = self.c_attn(x)
+
+        query,key,value = qkv.split(self.d_model,dim=2)
+
+        
+        query = query.view(query.shape[0], query.shape[1], self.n_heads, self.d_k).transpose(1, 2)
+        key = key.view(key.shape[0], key.shape[1], self.n_heads, self.d_k).transpose(1, 2)
+        value = value.view(value.shape[0], value.shape[1], self.n_heads, self.d_k).transpose(1, 2)
+
+        seq_len = query.shape[-2]
+        query, key = self.rope(query, key, seq_len)
+        
+        # Use Flash Attention if available (PyTorch 2.0+)
+        if self.use_flash_attn:
+            # Convert mask format for scaled_dot_product_attention
+            attn_mask = None
+            if not self.is_causal and mask is not None:
+                attn_mask = mask.bool() if mask.dtype != torch.bool else mask
+            
+            x = torch.nn.functional.scaled_dot_product_attention(
+                query, key, value, 
+                attn_mask=attn_mask,
+                dropout_p=self.dropout.p if self.training else 0.0,
+                is_causal=self.is_causal  # We provide our own mask
+            )
+        else:
+            # Fallback to manual attention
+            x = MultiHeadBlock.attention(query, key, value, mask, self.dropout)
+        
+        x = x.transpose(1, 2).contiguous().view(x.shape[0], -1, self.n_heads * self.d_k)
+        return self.w_o(x)
+
+
+
 class ResidualConn(nn.Module):
     def __init__(self, dropout, d_model, bias=True,norm="layernorm"):
         super().__init__()
@@ -374,7 +450,7 @@ class DecoderBlock(nn.Module):
 
 #modified decoder block(removed cross attention) used for decoder only transformer
 class DecoderOnlyBlock(nn.Module):
-    def __init__(self, self_attention: MultiHeadBlock, feed_forward_block, dropout, d_model,bias=True,norm="layernorm"):
+    def __init__(self, self_attention: AttentionForDecoderOnly, feed_forward_block, dropout, d_model,bias=True,norm="layernorm"):
         super().__init__()
 
         self.self_attention = self_attention
@@ -383,7 +459,7 @@ class DecoderOnlyBlock(nn.Module):
         self.residual_conns = nn.ModuleList([ResidualConn(dropout,d_model,bias=bias,norm=norm) for _ in range(2)])
 
     def forward(self, x, trgt_mask):
-        x = self.residual_conns[0](x, lambda x: self.self_attention(x, x, x, trgt_mask))
+        x = self.residual_conns[0](x, lambda x: self.self_attention(x, trgt_mask))
         x = self.residual_conns[1](x, self.feed_forward)
         return x
 
@@ -524,7 +600,7 @@ def build_transformer_next_token(
 
     decoder_blocks = []
     for _ in range(n_layers):
-        self_attn = MultiHeadBlock(d_model, n_heads, dropout,use_flash_attn=True)
+        self_attn = AttentionForDecoderOnly(d_model, n_heads, dropout,use_flash_attn=True)
         ff = FeedForwardNet(d_model, dff, dropout,activation="swiglu")
         decoder_blocks.append(DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False,norm="rms"))
 
