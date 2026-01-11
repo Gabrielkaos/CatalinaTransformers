@@ -72,14 +72,19 @@ def setup_model_for_chat_finetuning(model_name):
     
     return model, tokenizer
 
-def prepare_chat_dataset1(tokenizer, max_len=512, dataset_name="mou3az/Question-Answering-Generation-Choices"):
-    dataset = load_dataset(dataset_name, split="train[:2000]")
+def prepare_chat_dataset1(tokenizer, max_len=512, dataset_name="google/Synthetic-Persona-Chat"):
+    dataset = load_dataset(dataset_name, split="train[:4000]")
+    dataset.shuffle(12)
 
     def filter_valid_examples(example):
         """Keep only examples with non-null, non-empty context, question, and answer"""
-        context = example.get("context")
-        question = example.get("question")
-        answer = example.get("answer")
+        context = example.get("user 1 personas")
+        question = example.get("user 2 personas")
+        answer = example.get("Best Generated Conversation")
+
+        print(context)
+        print()
+        print(question)
         
         # Check if any field is None or empty string
         if context is None or not str(context).strip():
@@ -94,15 +99,15 @@ def prepare_chat_dataset1(tokenizer, max_len=512, dataset_name="mou3az/Question-
     dataset = dataset.filter(filter_valid_examples, num_proc=6)
 
     def tokenize_and_mask(example):
-        context = example["context"]
-        question = example.get("question", "")
-        answer = example["answer"]
+        context = example.get("user 1 personas")
+        question = example.get("user 2 personas")
+        answer = example.get("Best Generated Conversation")
 
         
         prompt = (
-            f"### Context:\n{context}\n\n"
-            f"### Question:\n{question}\n\n"
-            f"### Answer:\n"
+            f"### User 1 Persona:\n{context}\n\n"
+            f"### User 2 Persona:\n{question}\n\n"
+            f"### Dialogue:\n"
         )
 
         full_text = prompt + answer + tokenizer.eos_token
@@ -153,8 +158,8 @@ def train_chat_model(model, tokenizer, dataset, output_dir="./chat_model"):
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=3,
-        per_device_train_batch_size=10,
-        gradient_accumulation_steps=4,
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=10,
         learning_rate=2e-4,
         fp16=True,
         logging_steps=10,
@@ -243,9 +248,10 @@ def generate_response(model, tokenizer, prompt, max_length=128, skip_special=Fal
     return response
 
 if __name__ == "__main__":
+    torch.cuda.empty_cache()
     # print("Setting up model for chat fine-tuning...")
 
-    model_dir = "./feature_extract"
+    model_dir = "./persona_dialogue"
     base_model_name = "openai-community/gpt2"
 
     # model, tokenizer = load_trained_model(model_dir, base_model_name)
@@ -264,9 +270,9 @@ if __name__ == "__main__":
     #     print(f"{token!r:15} -> {label}")
         
    
-    print("\nStarting fine-tuning...")
-    model = train_chat_model(model, tokenizer, dataset,output_dir=model_dir)
-    print("Done training.")
+    # print("\nStarting fine-tuning...")
+    # model = train_chat_model(model, tokenizer, dataset,output_dir=model_dir)
+    # print("Done training.")
     
     # inputs = "10*10 = "
     # print("\nTesting generation...")

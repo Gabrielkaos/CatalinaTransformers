@@ -51,31 +51,24 @@ def setup_model_for_chat_finetuning(model_name):
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         dtype=torch.float16,
-        device_map="auto",
-        trust_remote_code=True
+        device_map="auto"
     )
+    
+    if added:
+        model.resize_token_embeddings(len(tokenizer))
+
     model.config.pad_token_id = tokenizer.pad_token_id
     model.config.eos_token_id = tokenizer.eos_token_id
 
-    if added:
-        model.resize_token_embeddings(len(tokenizer))
-        model.config.pad_token_id = tokenizer.pad_token_id
-        if tokenizer.eos_token_id is not None:
-            model.config.eos_token_id = tokenizer.eos_token_id
-
-    
    
     lora_config = LoraConfig(
         r=16,  
         lora_alpha=32, 
         target_modules=[
-            "q_proj",
-            "k_proj", 
-            "v_proj",
-            "o_proj",
-            "gate_proj",
-            "up_proj",
-            "down_proj"
+               "q_proj",
+                "k_proj",
+                "v_proj",
+                "o_proj",
         ],  
         lora_dropout=0.05,
         bias="none",
@@ -93,49 +86,9 @@ def setup_model_for_chat_finetuning(model_name):
     return model, tokenizer
 
 
-def prepare_chat_dataset(tokenizer, max_len=512, dataset_name="tatsu-lab/alpaca"):
-    
-    dataset = load_dataset(dataset_name, split="train[:1]")
-    
-    def format_chat(example):
-       
-        if "instruction" in example:
-            
-            instruction = example["instruction"]
-            input_text = example.get("input", "")
-            output = example["output"]
-            
-            if input_text:
-                prompt = f"### Instruction:\n{instruction}\n\n### Input:\n{input_text}\n\n### Response:\n{output}"
-            else:
-                prompt = f"### Instruction:\n{instruction}\n\n### Response:\n{output}"
-        else:
-            
-            prompt = example.get("text", "")
-        prompt+=tokenizer.eos_token
-        return {"text": prompt}
-    
-    dataset = dataset.map(format_chat)
-    
-  
-    def tokenize_function(examples):
-        tokenized = tokenizer(
-            examples["text"],
-            truncation=True,
-            max_length=max_len
-        )
-        return tokenized
-    
-    tokenized_dataset = dataset.map(
-        tokenize_function,
-        batched=True,
-        remove_columns=dataset.column_names
-    )
-    
-    return tokenized_dataset
+def prepare_chat_dataset1(tokenizer, max_len=512, dataset_name="yahma/alpaca-cleaned"):
+    dataset = load_dataset(dataset_name, split="train[:15000]") # 50k rows
 
-def prepare_chat_dataset1(tokenizer, max_len=512, dataset_name="tatsu-lab/alpaca"):
-    dataset = load_dataset(dataset_name, split="train") # 50k rows
 
     def tokenize_and_mask(example):
         instruction = example["instruction"]
@@ -198,14 +151,16 @@ def train_chat_model(model, tokenizer, dataset, output_dir="./chat_model"):
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=2,
-        per_device_train_batch_size=10,
-        gradient_accumulation_steps=4,
-        learning_rate=1e-4,
+        per_device_train_batch_size=4,
+        gradient_accumulation_steps=8,
+        learning_rate=2e-4,
         fp16=True,
-        logging_steps=10,
+        logging_steps=20,
         save_strategy="epoch",
-        warmup_steps=100,
-        optim="paged_adamw_8bit",  
+        warmup_ratio=0.05,
+        optim="paged_adamw_8bit",
+        lr_scheduler_type="cosine",
+        report_to="none",
     )
     # def data_collator_token_classification(features: List[Dict]):
     #     # Use tokenizer.pad to pad input_ids/attention_mask/etc into a batch
@@ -252,39 +207,61 @@ def train_chat_model(model, tokenizer, dataset, output_dir="./chat_model"):
     return model
 
 
-# def load_trained_model(model_dir="./chat_model", base_model_name="Qwen/Qwen2.5-0.5B"):
+def load_trained_model(model_dir="./chat_model", base_model_name="Qwen/Qwen2.5-0.5B"):
     
-#     print(f"Loading trained model from {model_dir}...")
-    
-    
-#     tokenizer = AutoTokenizer.from_pretrained(model_dir)
+    print(f"Loading trained model from {model_dir}...")
     
     
-#     base_model = AutoModelForCausalLM.from_pretrained(
-#         base_model_name,
-#         dtype=torch.float16,
-#         device_map="auto",
-#         trust_remote_code=True,
-#         offload_folder="offload"
-#     )
+    tokenizer = AutoTokenizer.from_pretrained(model_dir)
     
     
-#     model = PeftModel.from_pretrained(
-#         base_model, 
-#         model_dir,
-#         offload_folder="offload" 
-#     )
+    base_model = AutoModelForCausalLM.from_pretrained(
+        base_model_name,
+        dtype=torch.float16,
+        device_map="auto",
+        trust_remote_code=True,
+        offload_folder="offload"
+    )
     
-#     print("Model loaded successfully!")
-#     return model, tokenizer
+    
+    model = PeftModel.from_pretrained(
+        base_model, 
+        model_dir,
+        offload_folder="offload" 
+    )
+    
+    print("Model loaded successfully!")
+    return model, tokenizer
 
-
+def generate_response(model, tokenizer, prompt, max_length=128, skip_special=False, sample=True
+                      ,temp=0.7,top_p=0.9):
+    
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    model.eval()
+    
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_length,
+            do_sample=sample,
+            temperature=temp,
+            top_p=top_p,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id, 
+            repetition_penalty=1.1,
+            
+        )
+    
+    response = tokenizer.decode(outputs[0], skip_special_tokens=skip_special)
+    if not skip_special and tokenizer.eos_token in response:
+        response = response.split(tokenizer.eos_token)[0]
+    return response
 
 if __name__ == "__main__":
     # print("Setting up model for chat fine-tuning...")
 
     model_dir = "./general_chat2"
-    base_model_name = "Qwen/Qwen2.5-0.5B"
+    base_model_name = "HuggingFaceTB/SmolLM2-360M"
 
     # model, tokenizer = load_trained_model(model_dir, base_model_name)
     
@@ -310,7 +287,7 @@ if __name__ == "__main__":
     
     
     # print("\nTesting generation...")
-    # test_prompt = "### Instruction:\nWrite a short poem about coding.\n\n### Response:\n"
+    # test_prompt = ""
     # response = generate_response(model, tokenizer, test_prompt, max_length=50)
     # print(f"\nPrompt: {test_prompt}")
     # print(f"Response: {response}")

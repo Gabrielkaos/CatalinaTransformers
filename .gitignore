@@ -1,10 +1,10 @@
 *.pth
 *_pycache__
 *.csv
-/CATALINA-QWEN-0.5B/general/general_chat/*
 /CATALINA-QWEN-0.5B/general/general_chat2/*
 /CATALINA-QWEN-0.5B/algebra/algebra/*
 *.dat
 
-/CATALINA-GPT/general/feature_extract/*
-/CATALINA-GPT/general/checkpoint-3000/*
+/CATALINA-GPT/general/persona_dialogue/*
+
+/CATALINA-SmolLM2-360M/general/chat/*

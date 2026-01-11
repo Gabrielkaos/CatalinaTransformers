@@ -1,5 +1,7 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
+import warnings
+warnings.filterwarnings("ignore")
 
 MODEL_NAME = "HuggingFaceTB/SmolLM2-360M-Instruct"
 
@@ -17,14 +19,15 @@ model.eval()
 
 
 print("Catalina Chatbot based on SMolLM2 (type 'exit' to quit)\n")
-messages = [
-        {"role": "system", "content": "You are a helpful AI assistant named Catalina. Answer directly and precisely with no emotion."},    
-    ]
 
 while True:
     user_input = input("You: ").strip()
     if user_input.lower() in {"exit", "quit"}:
         break
+    
+    messages = [
+        {"role": "system", "content": "You are a helpful AI assistant named Catalina. Answer directly and precisely with no emotion."},    
+    ]
 
     my_message = {"role": "user", "content": user_input}
     messages.append(my_message)
@@ -43,7 +46,7 @@ while True:
         output_ids = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            max_new_tokens=128,
+            max_new_tokens=512,
             do_sample=False,           # deterministic
             pad_token_id=tokenizer.eos_token_id
         )
@@ -55,7 +58,7 @@ while True:
         skip_special_tokens=True
     ).strip()
 
-    print(f"\nSmolLM: {assistant_reply}\n")
+    print(f"\nSmolLM:\n{assistant_reply}\n")
 
     # Save assistant reply to memory
-    messages.append({"role": "assistant", "content": assistant_reply})
+    # messages.append({"role": "assistant", "content": assistant_reply})
