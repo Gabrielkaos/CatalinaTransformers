@@ -179,41 +179,42 @@ if __name__ == "__main__":
         print("Copying gpt2's weights")
         print("Copying embedding...")
         #copy gpt2's embedding
-        model.state_dict()["embed.weight"].data.copy_(sd_hf["transformer.wte.weight"])
-        model.state_dict()["pos.weight"].data.copy_(sd_hf["transformer.wpe.weight"])
+        model.embed.weigh.data.copy_(sd_hf["transformer.wte.weight"])
+        model.pos.weight.data.copy_(sd_hf["transformer.wpe.weight"])
         
         #copy gpt2 attention projection
         print("Copying attention...")
         for i in range(config["n_layers"]):
+            layer = model.decoder.layers[i]
             #proj
-            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.weight"].data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"].t())
-            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.bias"].data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
+            layer.self_attention.w_o.weight.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"].t())
+            layer.self_attention.w_o.bias.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
             
             #attn
-            model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.weight"].data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.weight"].t())
-            model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.bias"].data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
+            layer.self_attention.c_attn.weight.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.weight"].t())
+            layer.self_attention.c_attn.bias.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
             
             #mlp
             if config["mlp_activation"]=="gelu":
-                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear1.weight"].data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
-                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear2.weight"].data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
-                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear1.bias"].data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.bias"])
-                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear2.bias"].data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.bias"])
+                layer.feed_forward.linear1.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
+                layer.feed_forward.linear2.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
+                layer.feed_forward.linear1.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.bias"])
+                layer.feed_forward.linear2.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.bias"])
             # transformer.h.9.mlp.c_fc.weight
 
             #copy layer norms
-            model.state_dict()[f"decoder.layers.{i}.residual_conns.0.norm.weight"].data.copy_(sd_hf[f"transformer.h.{i}.ln_1.weight"])
-            model.state_dict()[f"decoder.layers.{i}.residual_conns.0.norm.bias"].data.copy_(sd_hf[f"transformer.h.{i}.ln_1.bias"])
-            model.state_dict()[f"decoder.layers.{i}.residual_conns.1.norm.weight"].data.copy_(sd_hf[f"transformer.h.{i}.ln_2.weight"])
-            model.state_dict()[f"decoder.layers.{i}.residual_conns.1.norm.bias"].data.copy_(sd_hf[f"transformer.h.{i}.ln_2.bias"])
+            layer.residual_conns[0].norm.weight.data.copy_(sd_hf[f"transformer.h.{i}.ln_1.weight"])
+            layer.residual_conns[0].norm.bias.data.copy_(sd_hf[f"transformer.h.{i}.ln_1.bias"])
+            layer.residual_conns[1].norm.weight.data.copy_(sd_hf[f"transformer.h.{i}.ln_2.weight"])
+            layer.residual_conns[1].norm.bias.data.copy_(sd_hf[f"transformer.h.{i}.ln_2.bias"])
 
         #last norm copy
-        model.state_dict()["decoder.norm.weight"].data.copy_(sd_hf["transformer.ln_f.weight"])
-        model.state_dict()["decoder.norm.bias"].data.copy_(sd_hf["transformer.ln_f.bias"])
+        model.decoder.norm.weight.data.copy_(sd_hf["transformer.ln_f.weight"])
+        model.decoder.norm.bias.data.copy_(sd_hf["transformer.ln_f.bias"])
 
         #copy gpt2's lm_head
         print("Copying lm head...")
-        model.state_dict()["proj.projection_layer.weight"].data.copy_(sd_hf["lm_head.weight"])
+        model.proj.projection_layer.weight.data.copy_(sd_hf["lm_head.weight"])
 
         # print(*model.state_dict().keys(),sep="\n")
         # print()
