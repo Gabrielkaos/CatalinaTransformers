@@ -378,6 +378,17 @@ class ResidualConn(nn.Module):
 
     def forward(self, x, sub_layer):
         return x + self.dropout(sub_layer(self.norm(x)))
+    
+
+class GPTResidualConn(nn.Module):
+    def __init__(self, dropout, d_model):
+        super().__init__()
+
+        self.dropout = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(d_model)
+
+    def forward(self, x, sub_layer):
+        return x + self.dropout(sub_layer(self.norm(x)))
 
 
 class EncoderBlock(nn.Module):
@@ -452,7 +463,7 @@ class GPTDecoderBlock(nn.Module):
         self.self_attention = self_attention
         self.feed_forward = feed_forward_block
 
-        self.residual_conns = nn.ModuleList([ResidualConn(dropout,d_model,bias=bias,norm=norm) for _ in range(2)])
+        self.residual_conns = nn.ModuleList([GPTResidualConn(dropout,d_model) for _ in range(2)])
 
     def forward(self, x, trgt_mask):
         x = self.residual_conns[0](x, lambda x: self.self_attention(x,trgt_mask))
