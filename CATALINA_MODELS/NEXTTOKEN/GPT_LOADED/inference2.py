@@ -69,7 +69,7 @@ def generate(
    
     x = torch.tensor([token_ids], dtype=torch.long, device=device)
     
-    predicted = []
+    # predicted = []
     
     for step in range(max_len):
         current_len = x.size(1)
@@ -103,12 +103,20 @@ def generate(
                 top_k=top_k,
                 top_p=top_p
             )
+            # probs = F.softmax(next_token_logits,dim=-1)
+
+            # topk_probs, topk_indices = torch.topk(probs,50,dim=-1)
+
+            # ix = torch.multinomial(topk_probs,1)
+            # xcol = torch.gather(topk_indices,-1,ix)
+
+            # x = torch.cat((x,xcol),dim=1)
         
         
         # if next_token.item() == tokenizer.eos_token:
         #     break
-        
-        predicted.append(next_token.item())
+        # print("Hello")
+        # # predicted.append(next_token.item())
         
         x = torch.cat([x, next_token], dim=1)
     
@@ -137,14 +145,17 @@ if __name__ == "__main__":
         "n_heads":12,
         "dropout":0.2,  
         "bias_projection":False,
-        "norm":"rms",
-        "mlp_activation":"gelu",
-        "use_flash_attn":True
+        "mlp_activation":"gelu"
     }
+
     
+    # transformer.h.0.mlp.c_fc.bias
+    # transformer.h.0.mlp.c_proj.bias
+
+        
     config["vocab_size"] = vocab
     model = gpt2_like_model(**config).to(device)
-    print(f"Model vocab:{model.embed.vocab_size}")
+    # print(f"Model vocab:{model.embed.vocab_size}")
     print(f"Data vocab:{vocab}")
     try:
         # checkpoint = torch.load("checkpoints/best_model.pth", map_location=device)
@@ -168,28 +179,41 @@ if __name__ == "__main__":
         print("Copying gpt2's weights")
         print("Copying embedding...")
         #copy gpt2's embedding
-        model.state_dict()["embed.embedding.weight"].copy_(sd_hf["transformer.wte.weight"])
+        model.state_dict()["embed.weight"].data.copy_(sd_hf["transformer.wte.weight"])
+        model.state_dict()["pos.weight"].data.copy_(sd_hf["transformer.wpe.weight"])
         
         #copy gpt2 attention projection
         print("Copying attention...")
         for i in range(config["n_layers"]):
             #proj
-            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.weight"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"].t())
-            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
+            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.weight"].data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"].t())
+            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.bias"].data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
             
             #attn
-            model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.weight"].copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.weight"].t())
-            model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
+            model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.weight"].data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.weight"].t())
+            model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.bias"].data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
             
             #mlp
             if config["mlp_activation"]=="gelu":
-                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear1.weight"].copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
-                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear2.weight"].copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
+                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear1.weight"].data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
+                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear2.weight"].data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
+                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear1.bias"].data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.bias"])
+                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear2.bias"].data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.bias"])
             # transformer.h.9.mlp.c_fc.weight
+
+            #copy layer norms
+            model.state_dict()[f"decoder.layers.{i}.residual_conns.0.norm.weight"].data.copy_(sd_hf[f"transformer.h.{i}.ln_1.weight"])
+            model.state_dict()[f"decoder.layers.{i}.residual_conns.0.norm.bias"].data.copy_(sd_hf[f"transformer.h.{i}.ln_1.bias"])
+            model.state_dict()[f"decoder.layers.{i}.residual_conns.1.norm.weight"].data.copy_(sd_hf[f"transformer.h.{i}.ln_2.weight"])
+            model.state_dict()[f"decoder.layers.{i}.residual_conns.1.norm.bias"].data.copy_(sd_hf[f"transformer.h.{i}.ln_2.bias"])
+
+        #last norm copy
+        model.state_dict()["decoder.norm.weight"].data.copy_(sd_hf["transformer.ln_f.weight"])
+        model.state_dict()["decoder.norm.bias"].data.copy_(sd_hf["transformer.ln_f.bias"])
 
         #copy gpt2's lm_head
         print("Copying lm head...")
-        model.state_dict()["proj.projection_layer.weight"].copy_(sd_hf["lm_head.weight"])
+        model.state_dict()["proj.projection_layer.weight"].data.copy_(sd_hf["lm_head.weight"])
 
         # print(*model.state_dict().keys(),sep="\n")
         # print()
@@ -212,10 +236,11 @@ if __name__ == "__main__":
     
     print("\n=== Greedy Decoding ===")
     output = generate(
-        model, tokenizer, "Hello I am, ", 
+        model, tokenizer, "Hello there,", 
         max_len=100,seq_len=256, 
         device=device,
-        temperature=0.0,
+        temperature=0.8,
+        repetition_penalty=1.2
     )
     print(output)
     # print(output)

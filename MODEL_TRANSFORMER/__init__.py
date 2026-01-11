@@ -205,7 +205,7 @@ class FeedForwardNet(nn.Module):
         else:
             self.linear1 = nn.Linear(d_model, dff, bias=bias)
             self.linear2 = nn.Linear(dff, d_model, bias=bias)
-            self.activation_fn = F.gelu if activation == "gelu" else F.relu
+            self.activation_fn = nn.GELU(approximate="tanh") if activation == "gelu" else F.relu
             self.use_swiglu = False
         
         self.dropout = nn.Dropout(dropout)
@@ -309,10 +309,9 @@ class MultiHeadBlock(nn.Module):
 
 
 class GPT2Attention(nn.Module):
-    def __init__(self, d_model, n_heads, dropout, use_flash_attn=False, is_causal=True):
+    def __init__(self, d_model, n_heads, dropout):
         super().__init__()
 
-        self.is_causal=is_causal
 
         self.d_model = d_model
         self.n_heads = n_heads
@@ -457,7 +456,7 @@ class DecoderOnlyBlock(nn.Module):
         return x
     
 class GPTDecoderBlock(nn.Module):
-    def __init__(self, self_attention, feed_forward_block: FeedForwardNet, dropout, d_model,bias=True,norm="layernorm"):
+    def __init__(self, self_attention, feed_forward_block: FeedForwardNet, dropout, d_model):
         super().__init__()
 
         self.self_attention = self_attention
@@ -631,28 +630,25 @@ def gpt2_like_model(
     n_heads=8,
     dropout=0.1,
     bias_projection=False,
-    norm="rms",
-    mlp_activation="swiglu",
-    use_flash_attn=True
+    mlp_activation="gelu"
 ):
     embed = nn.Embedding(vocab_size,d_model)
-    
     pos = nn.Embedding(block_size,d_model)
 
     decoder_blocks = []
     for _ in range(n_layers):
-        self_attn = GPT2Attention(d_model, n_heads, dropout,use_flash_attn=use_flash_attn)
-        ff = FeedForwardNet(d_model, 4 * d_model, dropout,activation=mlp_activation)
-        decoder_blocks.append(GPTDecoderBlock(self_attn, ff, dropout, d_model, bias=False,norm=norm))
+        self_attn = GPT2Attention(d_model, n_heads, dropout)
+        ff = FeedForwardNet(d_model, 4 * d_model, dropout,activation=mlp_activation,bias=True)
+        decoder_blocks.append(GPTDecoderBlock(self_attn, ff, dropout, d_model))
 
-    decoder = GPTDecoder(nn.ModuleList(decoder_blocks))
+    decoder = GPTDecoder(nn.ModuleList(decoder_blocks),d_model)
     projection = ProjectionLayer(d_model, vocab_size,bias=bias_projection)
 
     model = GPTTransformer(decoder, embed,pos, projection)
 
-    for p in model.parameters():
-        if p.dim() > 1:
-            nn.init.xavier_uniform_(p)
+    # for p in model.parameters():
+    #     if p.dim() > 1:
+    #         nn.init.xavier_uniform_(p)
 
     return model
 
