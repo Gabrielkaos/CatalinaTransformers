@@ -130,9 +130,8 @@ if __name__ == "__main__":
         "d_model":768,
         "n_layers":10,
         "n_heads":768//64,
-        "dff":768*4,
         "dropout":0.2,  
-        
+        "bias_projection":True
     }
     
     config["vocab_size"] = len(vocab)
@@ -166,8 +165,6 @@ if __name__ == "__main__":
     print(f"Total parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
 
-    print(model.state_dict().keys())
-    exit()
     
     
     # print("\n=== Greedy Decoding ===")
