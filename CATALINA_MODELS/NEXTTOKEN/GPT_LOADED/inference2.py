@@ -1,8 +1,8 @@
 import torch
 import torch.nn.functional as F
-from data_cleaning2 import tokenize_with_tiktoken
-from MODEL_TRANSFORMER import build_transformer_next_token
-from unidecode import unidecode
+# from data_cleaning2 import tokenize_with_tiktoken
+from MODEL_TRANSFORMER import gpt2_like_model
+# from unidecode import unidecode
 import tiktoken
 from transformers import GPT2LMHeadModel
 
@@ -51,7 +51,7 @@ def generate(
     tokenizer, 
     prompt, 
     max_len=50,
-    seq_len=256, 
+    seq_len=1024, 
     device="cpu",
     temperature=1.0,
     top_k=None,
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     }
     
     config["vocab_size"] = vocab
-    model = build_transformer_next_token(**config).to(device)
+    model = gpt2_like_model(**config).to(device)
     print(f"Model vocab:{model.embed.vocab_size}")
     print(f"Data vocab:{vocab}")
     try:

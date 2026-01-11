@@ -322,14 +322,14 @@ class GPT2Attention(nn.Module):
 
         self.d_k = d_model // n_heads
 
-        self.rope = RotaryEmbedding(self.d_k)
+        # self.rope = RotaryEmbedding(self.d_k)
 
 
         self.c_attn = nn.Linear(d_model, 3 * d_model)
 
         self.w_o = nn.Linear(d_model, d_model)
 
-        self.use_flash_attn = use_flash_attn and hasattr(torch.nn.functional, 'scaled_dot_product_attention')
+        # self.use_flash_attn = use_flash_attn and hasattr(torch.nn.functional, 'scaled_dot_product_attention')
 
 
     @staticmethod
@@ -503,6 +503,19 @@ class DecoderOnly(nn.Module):
         return self.norm(x)
 
 
+class GPTDecoder(nn.Module):
+    def __init__(self, layers: nn.ModuleList, d_model):
+        super().__init__()
+
+        self.layers = layers
+        self.norm = nn.LayerNorm(d_model)
+
+    def forward(self, x, mask):
+        for layer in self.layers:
+            x = layer(x, mask)
+        return self.norm(x)
+
+
 class ProjectionLayer(nn.Module):
     def __init__(self, d_model, vocab_size, bias=True):
         super().__init__()
@@ -602,8 +615,11 @@ class GPTTransformer(nn.Module):
         # self.proj.projection_layer.weight=self.embed.embedding.weight
 
     def forward(self, x, mask):
-        x = self.embed(x)
-        x = self.pos(x)
+        B,T = x.size()
+        pos = torch.arange(0,T, dtype=torch.long, device=x.device)
+
+        x = self.embed(x) + self.pos(pos)
+    
         x = self.decoder(x, mask)
         return self.proj(x)
 
@@ -619,8 +635,8 @@ def gpt2_like_model(
     mlp_activation="swiglu",
     use_flash_attn=True
 ):
-    embed = InputEmbedding(d_model, vocab_size)
-    # pos = PositionalEncoding(d_model, seq_len, dropout, device=device)
+    embed = nn.Embedding(vocab_size,d_model)
+    
     pos = nn.Embedding(block_size,d_model)
 
     decoder_blocks = []
@@ -629,7 +645,7 @@ def gpt2_like_model(
         ff = FeedForwardNet(d_model, 4 * d_model, dropout,activation=mlp_activation)
         decoder_blocks.append(GPTDecoderBlock(self_attn, ff, dropout, d_model, bias=False,norm=norm))
 
-    decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False,norm=norm)
+    decoder = GPTDecoder(nn.ModuleList(decoder_blocks))
     projection = ProjectionLayer(d_model, vocab_size,bias=bias_projection)
 
     model = GPTTransformer(decoder, embed,pos, projection)
