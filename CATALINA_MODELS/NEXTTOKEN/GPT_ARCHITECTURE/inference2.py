@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from MODEL_TRANSFORMER import gpt2_like_model
 import tiktoken
+from transformers import GPT2LMHeadModel
 
 
 @torch.no_grad()
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     try:
         data_model: dict  =  torch.load("gpt.pth")
         model.load_state_dict(data_model["model_state"])
-        """
+        
         # checkpoint = torch.load("checkpoints/best_model.pth", map_location=device)
         # state_dict = checkpoint["model_state"]
 
@@ -89,7 +90,7 @@ if __name__ == "__main__":
         # model.load_state_dict(new_state_dict) 
 
         #load gpt2
-        # model_hf = GPT2LMHeadModel.from_pretrained("gpt2")
+        # model_hf = GPT2LMHeadModel.from_pretrained("vicgalle/gpt2-alpaca")
         # sd_hf = model_hf.state_dict()
         
         # print("Copying gpt2's weights")
@@ -132,12 +133,9 @@ if __name__ == "__main__":
         # print("Copying lm head...")
         # model.proj.projection_layer.weight.data.copy_(sd_hf["lm_head.weight"])
 
-        # weight tying
-        # model.proj.projection_layer.weight = model.embed.weight
-
-        # print(*model.state_dict().keys(),sep="\n")
-        # print()
-        """
+        # # print(*model.state_dict().keys(),sep="\n")
+        # # print()
+        
         print("Model loaded successfully!")
 
     except FileNotFoundError:

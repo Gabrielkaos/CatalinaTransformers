@@ -7,7 +7,6 @@ from transformers import (
     Trainer,
     DataCollatorWithPadding
 )
-from transformers import default_data_collator
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 from peft import PeftModel
@@ -37,18 +36,18 @@ class CausalLMDataCollator(DataCollatorWithPadding):
 def setup_model_for_chat_finetuning(model_name):
     
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    if tokenizer.pad_token is None:
-        # tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "right"
+    # if tokenizer.pad_token is None:
+    #     # tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    #     tokenizer.pad_token = tokenizer.eos_token
+    # tokenizer.padding_side = "right"
     
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         dtype=torch.float16,
         device_map="auto"
     )
-    model.config.pad_token_id = tokenizer.pad_token_id
-    model.config.eos_token_id = tokenizer.eos_token_id
+    # model.config.pad_token_id = tokenizer.pad_token_id
+    # model.config.eos_token_id = tokenizer.eos_token_id
 
     # model.resize_token_embeddings(len(tokenizer))
     
@@ -259,9 +258,12 @@ if __name__ == "__main__":
     model, tokenizer = setup_model_for_chat_finetuning(
         model_name=base_model_name
     )
+
+    print(tokenizer.eos_token)
+    print(tokenizer.eos_token_id)
     
-    print("\nPreparing chat dataset...")
-    dataset = prepare_chat_dataset1(tokenizer, max_len=1024)
+    # print("\nPreparing chat dataset...")
+    # dataset = prepare_chat_dataset1(tokenizer, max_len=1024)
 
     # see data
     # sample = dataset[0]
