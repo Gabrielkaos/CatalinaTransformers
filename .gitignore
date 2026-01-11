@@ -7,3 +7,5 @@
 /CATALINA-GPT/general/persona_dialogue/*
 /CATALINA-SmolLM2-360M/general/chat/*
 /LLM_Pretrained/*
+
+/LEARN/*
