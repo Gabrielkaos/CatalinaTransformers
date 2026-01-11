@@ -421,10 +421,10 @@ class DecoderOnly(nn.Module):
 
 
 class ProjectionLayer(nn.Module):
-    def __init__(self, d_model, vocab_size):
+    def __init__(self, d_model, vocab_size, bias=True):
         super().__init__()
 
-        self.projection_layer = nn.Linear(d_model, vocab_size)
+        self.projection_layer = nn.Linear(d_model, vocab_size,bias=bias)
 
     def forward(self, x):
         return self.projection_layer(x)
@@ -517,7 +517,7 @@ def build_transformer_next_token(
     n_heads=8,
     dropout=0.1,
     dff=2048,
-    device=None
+    bias_projection=False
 ):
     embed = InputEmbedding(d_model, vocab_size)
     # pos = PositionalEncoding(d_model, seq_len, dropout, device=device)
@@ -529,7 +529,7 @@ def build_transformer_next_token(
         decoder_blocks.append(DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False,norm="rms"))
 
     decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False,norm="rms")
-    projection = ProjectionLayer(d_model, vocab_size)
+    projection = ProjectionLayer(d_model, vocab_size,bias=bias_projection)
 
     model = TransformerDecoderOnly(decoder, embed, projection)
 

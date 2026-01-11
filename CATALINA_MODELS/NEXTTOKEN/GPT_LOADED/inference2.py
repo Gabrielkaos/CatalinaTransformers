@@ -3,6 +3,8 @@ import torch.nn.functional as F
 from data_cleaning2 import tokenize_with_tiktoken
 from MODEL_TRANSFORMER import build_transformer_next_token
 from unidecode import unidecode
+import tiktoken
+from transformers import GPT2LMHeadModel
 
 def causal_mask(size, device):
     
@@ -120,9 +122,9 @@ if __name__ == "__main__":
     print(f"Device: {device}")
     
     
-    data = torch.load("data_triple.pth", map_location=device)
-    vocab = data["vocab"]
-    tokenizer = data["tokenizer"]
+    # data = torch.load("data_triple.pth", map_location=device)
+    vocab = 50257
+    tokenizer = tiktoken.get_encoding("gpt2")
     
     
     config = {
@@ -132,27 +134,48 @@ if __name__ == "__main__":
         "n_heads":768//64,
         "dff":768*4,
         "dropout":0.2,  
-        
+        "bias_projection":False
     }
     
-    config["vocab_size"] = len(vocab)
+    config["vocab_size"] = vocab
     model = build_transformer_next_token(**config).to(device)
     print(f"Model vocab:{model.embed.vocab_size}")
-    print(f"Data vocab:{len(vocab)}")
+    print(f"Data vocab:{vocab}")
     try:
-        checkpoint = torch.load("checkpoints/best_model.pth", map_location=device)
-        state_dict = checkpoint["model_state"]
+        # checkpoint = torch.load("checkpoints/best_model.pth", map_location=device)
+        # state_dict = checkpoint["model_state"]
 
         
-        new_state_dict = {}
-        for k, v in state_dict.items():
-            if k.startswith("_orig_mod."):
-                new_k = k[len("_orig_mod."):]
-            else:
-                new_k = k
-            new_state_dict[new_k] = v
+        # new_state_dict = {}
+        # for k, v in state_dict.items():
+        #     if k.startswith("_orig_mod."):
+        #         new_k = k[len("_orig_mod."):]
+        #     else:
+        #         new_k = k
+        #     new_state_dict[new_k] = v
 
-        model.load_state_dict(new_state_dict) 
+        # model.load_state_dict(new_state_dict) 
+
+        #load gpt2
+        model_hf = GPT2LMHeadModel.from_pretrained("gpt2")
+        sd_hf = model_hf.state_dict()
+        
+        print("Copying gpt2's weights")
+        print("Copying embedding...")
+        #copy gpt2's embedding
+        model.state_dict()["embed.embedding.weight"].copy_(sd_hf["transformer.wte.weight"])
+        
+        #copy gpt2 attention projection
+        print("Copying attention projection...")
+        for i in range(config["n_layers"]):
+            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.weight"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"])
+            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
+
+        #copy gpt2's lm_head
+        print("Copying lm head...")
+        model.state_dict()["proj.projection_layer.weight"].copy_(sd_hf["lm_head.weight"])
+
+        print(*model.state_dict().keys(),sep="\n")
         print("Model loaded successfully!")
 
     except FileNotFoundError:
@@ -166,8 +189,8 @@ if __name__ == "__main__":
     print(f"Total parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
 
-    print(model.state_dict().keys())
-    exit()
+    # print(*model.state_dict().keys(), sep="\n")
+    # exit()
     
     
     # print("\n=== Greedy Decoding ===")
@@ -180,34 +203,34 @@ if __name__ == "__main__":
     #     repetition_penalty=1.2 
     # )
     # print(output)
-    while True:
-        print("\n\n")
-        instruction = input("instruction:")
-        if instruction=="quit":break
-        input1 = input("input:")
+#     while True:
+#         print("\n\n")
+#         instruction = input("instruction:")
+#         if instruction=="quit":break
+#         input1 = input("input:")
 
-        if input1 is not None:
-            prompt = f"""
-Instruction: {instruction}
-Input: {input1}
-Response:
-                """
-        else:
-            prompt = f"""
-Instruction: {instruction}
-Response:
-                """
+#         if input1 is not None:
+#             prompt = f"""
+# Instruction: {instruction}
+# Input: {input1}
+# Response:
+#                 """
+#         else:
+#             prompt = f"""
+# Instruction: {instruction}
+# Response:
+#                 """
         
         
-        # print("\n=== Sampling (temp=0.8, top_p=0.9) ===")
-        # print("Prompt:",prompt,"\n")
-        print("response:\n")
-        output = generate(
-            model, tokenizer, prompt,
-            max_len=500,seq_len=256,
-            device=device,
-            temperature=0.8,
-            top_p=0.9,
-            repetition_penalty=1.2
-        )
-        print(output)
+#         # print("\n=== Sampling (temp=0.8, top_p=0.9) ===")
+#         # print("Prompt:",prompt,"\n")
+#         print("response:\n")
+#         output = generate(
+#             model, tokenizer, prompt,
+#             max_len=500,seq_len=256,
+#             device=device,
+#             temperature=0.8,
+#             top_p=0.9,
+#             repetition_penalty=1.2
+#         )
+#         print(output)
