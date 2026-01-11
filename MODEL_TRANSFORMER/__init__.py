@@ -450,7 +450,7 @@ class DecoderBlock(nn.Module):
 
 #modified decoder block(removed cross attention) used for decoder only transformer
 class DecoderOnlyBlock(nn.Module):
-    def __init__(self, self_attention: AttentionForDecoderOnly, feed_forward_block, dropout, d_model,bias=True,norm="layernorm"):
+    def __init__(self, self_attention: AttentionForDecoderOnly, feed_forward_block: FeedForwardNet, dropout, d_model,bias=True,norm="layernorm"):
         super().__init__()
 
         self.self_attention = self_attention
@@ -592,19 +592,21 @@ def build_transformer_next_token(
     n_layers=6,
     n_heads=8,
     dropout=0.1,
-    dff=2048,
-    bias_projection=False
+    bias_projection=False,
+    norm="rms",
+    mlp_activation="swiglu",
+    use_flash_attn=True
 ):
     embed = InputEmbedding(d_model, vocab_size)
     # pos = PositionalEncoding(d_model, seq_len, dropout, device=device)
 
     decoder_blocks = []
     for _ in range(n_layers):
-        self_attn = AttentionForDecoderOnly(d_model, n_heads, dropout,use_flash_attn=True)
-        ff = FeedForwardNet(d_model, dff, dropout,activation="swiglu")
-        decoder_blocks.append(DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False,norm="rms"))
+        self_attn = AttentionForDecoderOnly(d_model, n_heads, dropout,use_flash_attn=use_flash_attn)
+        ff = FeedForwardNet(d_model, 4 * d_model, dropout,activation=mlp_activation)
+        decoder_blocks.append(DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False,norm=norm))
 
-    decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False,norm="rms")
+    decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False,norm=norm)
     projection = ProjectionLayer(d_model, vocab_size,bias=bias_projection)
 
     model = TransformerDecoderOnly(decoder, embed, projection)

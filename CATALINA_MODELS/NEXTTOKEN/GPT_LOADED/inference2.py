@@ -61,8 +61,10 @@ def generate(
     
     model.eval()
     
-    _,bow = tokenize_with_tiktoken(unidecode(prompt.strip()))
-    token_ids = [tokenizer.get(i,tokenizer.get("<PAD>")) for i in bow]
+    # _,bow = tokenize_with_tiktoken(unidecode(prompt.strip()))
+    token_ids = tokenizer.encode(prompt)
+
+    # print("token ids",token_ids)
     
    
     x = torch.tensor([token_ids], dtype=torch.long, device=device)
@@ -103,19 +105,20 @@ def generate(
             )
         
         
-        if next_token.item() == tokenizer.get("<EOS>"):
-            break
+        # if next_token.item() == tokenizer.eos_token:
+        #     break
         
         predicted.append(next_token.item())
         
         x = torch.cat([x, next_token], dim=1)
     
-    
-    decoder = {idx:char for char,idx in tokenizer.items()}
-    decoded_tokens = "".join(decoder[i] for i in predicted)
+    x = x[0][len(token_ids):].tolist()
+    # decoder = {idx:char for char,idx in tokenizer.items()}
+    # decoded_tokens = "".join(decoder[i] for i in predicted)
 
 
-    return decoded_tokens
+
+    return tokenizer.decode(x)
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -130,11 +133,13 @@ if __name__ == "__main__":
     config = {
         "vocab_size": None,
         "d_model":768,
-        "n_layers":10,
-        "n_heads":768//64,
-        "dff":768*4,
+        "n_layers":12,
+        "n_heads":12,
         "dropout":0.2,  
-        "bias_projection":False
+        "bias_projection":False,
+        "norm":"rms",
+        "mlp_activation":"swiglu",
+        "use_flash_attn":True
     }
     
     config["vocab_size"] = vocab
@@ -166,17 +171,22 @@ if __name__ == "__main__":
         model.state_dict()["embed.embedding.weight"].copy_(sd_hf["transformer.wte.weight"])
         
         #copy gpt2 attention projection
-        print("Copying attention projection...")
+        print("Copying attention...")
         for i in range(config["n_layers"]):
-            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.weight"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"])
-            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
+            #proj
+            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.weight"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"].t())
+            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"].t())
+            
+            #attn
+            model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.weight"].copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.weight"].t())
+            model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"].t())
 
         #copy gpt2's lm_head
         print("Copying lm head...")
         model.state_dict()["proj.projection_layer.weight"].copy_(sd_hf["lm_head.weight"])
 
-        print(*model.state_dict().keys(),sep="\n")
-        print()
+        # print(*model.state_dict().keys(),sep="\n")
+        # print()
         print("Model loaded successfully!")
 
     except FileNotFoundError:
@@ -194,15 +204,14 @@ if __name__ == "__main__":
     # exit()
     
     
-    # print("\n=== Greedy Decoding ===")
-    # print("Prompt:",prompt,"\n")
-    # output = generate(
-    #     model, tokenizer, prompt, 
-    #     max_len=100,seq_len=256, 
-    #     device=device,
-    #     temperature=0.1,
-    #     repetition_penalty=1.2 
-    # )
+    print("\n=== Greedy Decoding ===")
+    output = generate(
+        model, tokenizer, "Hello I am, ", 
+        max_len=100,seq_len=256, 
+        device=device,
+        temperature=0.0,
+    )
+    print(output)
     # print(output)
 #     while True:
 #         print("\n\n")
