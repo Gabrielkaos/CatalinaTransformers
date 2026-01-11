@@ -308,7 +308,7 @@ class MultiHeadBlock(nn.Module):
         return self.w_o(x)
 
 
-class AttentionForDecoderOnly(nn.Module):
+class GPT2Attention(nn.Module):
     def __init__(self, d_model, n_heads, dropout, use_flash_attn=False, is_causal=True):
         super().__init__()
 
@@ -450,7 +450,7 @@ class DecoderBlock(nn.Module):
 
 #modified decoder block(removed cross attention) used for decoder only transformer
 class DecoderOnlyBlock(nn.Module):
-    def __init__(self, self_attention: AttentionForDecoderOnly, feed_forward_block: FeedForwardNet, dropout, d_model,bias=True,norm="layernorm"):
+    def __init__(self, self_attention, feed_forward_block: FeedForwardNet, dropout, d_model,bias=True,norm="layernorm"):
         super().__init__()
 
         self.self_attention = self_attention
@@ -459,7 +459,21 @@ class DecoderOnlyBlock(nn.Module):
         self.residual_conns = nn.ModuleList([ResidualConn(dropout,d_model,bias=bias,norm=norm) for _ in range(2)])
 
     def forward(self, x, trgt_mask):
-        x = self.residual_conns[0](x, lambda x: self.self_attention(x, trgt_mask))
+        x = self.residual_conns[0](x, lambda x: self.self_attention(x,x,x, trgt_mask))
+        x = self.residual_conns[1](x, self.feed_forward)
+        return x
+    
+class GPTDecoderBlock(nn.Module):
+    def __init__(self, self_attention, feed_forward_block: FeedForwardNet, dropout, d_model,bias=True,norm="layernorm"):
+        super().__init__()
+
+        self.self_attention = self_attention
+        self.feed_forward = feed_forward_block
+
+        self.residual_conns = nn.ModuleList([ResidualConn(dropout,d_model,bias=bias,norm=norm) for _ in range(2)])
+
+    def forward(self, x, trgt_mask):
+        x = self.residual_conns[0](x, lambda x: self.self_attention(x,trgt_mask))
         x = self.residual_conns[1](x, self.feed_forward)
         return x
 
@@ -582,6 +596,56 @@ class TransformerDecoderOnly(nn.Module):
         # x = self.pos(x)
         x = self.decoder(x, mask)
         return self.proj(x)
+    
+class GPTTransformer(nn.Module):
+    def __init__(self, decoder, embed, pos, projection):
+        super().__init__()
+        self.decoder = decoder
+        self.embed = embed
+        self.pos = pos
+        self.proj = projection
+
+        #weight tying
+        # self.proj.projection_layer.weight=self.embed.embedding.weight
+
+    def forward(self, x, mask):
+        x = self.embed(x)
+        x = self.pos(x)
+        x = self.decoder(x, mask)
+        return self.proj(x)
+
+def gpt2_like_model(
+    vocab_size,
+    block_size=1024,
+    d_model=512,
+    n_layers=6,
+    n_heads=8,
+    dropout=0.1,
+    bias_projection=False,
+    norm="rms",
+    mlp_activation="swiglu",
+    use_flash_attn=True
+):
+    embed = InputEmbedding(d_model, vocab_size)
+    # pos = PositionalEncoding(d_model, seq_len, dropout, device=device)
+    pos = nn.Embedding(block_size,d_model)
+
+    decoder_blocks = []
+    for _ in range(n_layers):
+        self_attn = GPT2Attention(d_model, n_heads, dropout,use_flash_attn=use_flash_attn)
+        ff = FeedForwardNet(d_model, 4 * d_model, dropout,activation=mlp_activation)
+        decoder_blocks.append(GPTDecoderBlock(self_attn, ff, dropout, d_model, bias=False,norm=norm))
+
+    decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False,norm=norm)
+    projection = ProjectionLayer(d_model, vocab_size,bias=bias_projection)
+
+    model = TransformerDecoderOnly(decoder, embed, projection)
+
+    for p in model.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform_(p)
+
+    return model
 
 
 
@@ -602,7 +666,7 @@ def build_transformer_next_token(
 
     decoder_blocks = []
     for _ in range(n_layers):
-        self_attn = AttentionForDecoderOnly(d_model, n_heads, dropout,use_flash_attn=use_flash_attn)
+        self_attn = MultiHeadBlock(d_model, n_heads, dropout,use_flash_attn=use_flash_attn)
         ff = FeedForwardNet(d_model, 4 * d_model, dropout,activation=mlp_activation)
         decoder_blocks.append(DecoderOnlyBlock(self_attn, ff, dropout, d_model, bias=False,norm=norm))
 

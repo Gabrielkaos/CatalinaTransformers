@@ -138,7 +138,7 @@ if __name__ == "__main__":
         "dropout":0.2,  
         "bias_projection":False,
         "norm":"rms",
-        "mlp_activation":"swiglu",
+        "mlp_activation":"gelu",
         "use_flash_attn":True
     }
     
@@ -175,11 +175,17 @@ if __name__ == "__main__":
         for i in range(config["n_layers"]):
             #proj
             model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.weight"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"].t())
-            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"].t())
+            model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
             
             #attn
             model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.weight"].copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.weight"].t())
-            model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"].t())
+            model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
+            
+            #mlp
+            if config["mlp_activation"]=="gelu":
+                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear1.weight"].copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
+                model.state_dict()[f"decoder.layers.{i}.feed_forward.linear2.weight"].copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
+            # transformer.h.9.mlp.c_fc.weight
 
         #copy gpt2's lm_head
         print("Copying lm head...")

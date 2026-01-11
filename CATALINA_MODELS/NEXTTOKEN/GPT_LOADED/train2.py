@@ -8,11 +8,11 @@ from pathlib import Path
 from tqdm import tqdm
 from MODEL_TRANSFORMER import build_transformer_next_token
 import tiktoken
+from transformers import GPT2LMHeadModel
 
 class LanguageModelDataset(Dataset):
-    def __init__(self, sequences, pad_idx):
+    def __init__(self, sequences):
         self.sequences = sequences
-        self.pad_idx = pad_idx
 
     def __len__(self):
         return len(self.sequences)
@@ -209,7 +209,15 @@ def train():
     
    
     config = {
-        "vocab_size": None,  
+        "vocab_size": None,
+        "d_model":768,
+        "n_layers":12,
+        "n_heads":12,
+        "dropout":0.2,  
+        "bias_projection":False,
+        "norm":"rms",
+        "mlp_activation":"gelu",
+        "use_flash_attn":True
     }
     
    
@@ -235,16 +243,15 @@ def train():
     print("Loading data...")
     data = torch.load("data_tiktoken.pth")
     sequences = data["x"]
-    vocab = data["vocab"]
-    tokenizer = data["tokenizer"]
-    pad_idx = tokenizer.get("<PAD>")
+    vocab = 50257
+    tokenizer = tiktoken.get_encoding("gpt2")
     
-    config["vocab_size"] = len(vocab)
-    print(f"Vocab size: {len(vocab)}")
+    config["vocab_size"] = vocab
+    print(f"Vocab size: {vocab}")
     print(f"Total sequences: {len(sequences)}")
     
    
-    dataset = LanguageModelDataset(sequences, pad_idx)
+    dataset = LanguageModelDataset(sequences)
     
     
     val_size = int(len(dataset) * val_split)
@@ -279,6 +286,40 @@ def train():
     # ========== Build Model ==========
     print("Building model...")
     model = build_transformer_next_token(**config).to(device)
+
+    #load gpt2
+    model_hf = GPT2LMHeadModel.from_pretrained("gpt2")
+    sd_hf = model_hf.state_dict()
+    
+    print("Copying gpt2's weights")
+    print("Copying embedding...")
+    #copy gpt2's embedding
+    model.state_dict()["embed.embedding.weight"].copy_(sd_hf["transformer.wte.weight"])
+    
+    #copy gpt2 attention projection
+    print("Copying attention...")
+    for i in range(config["n_layers"]):
+        #proj
+        model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.weight"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"].t())
+        model.state_dict()[f"decoder.layers.{i}.self_attention.w_o.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
+        
+        #attn
+        model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.weight"].copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.weight"].t())
+        model.state_dict()[f"decoder.layers.{i}.self_attention.c_attn.bias"].copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
+        
+        #mlp
+        if config["mlp_activation"]=="gelu":
+            model.state_dict()[f"decoder.layers.{i}.feed_forward.linear1.weight"].copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
+            model.state_dict()[f"decoder.layers.{i}.feed_forward.linear2.weight"].copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
+        # transformer.h.9.mlp.c_fc.weight
+
+    #copy gpt2's lm_head
+    print("Copying lm head...")
+    model.state_dict()["proj.projection_layer.weight"].copy_(sd_hf["lm_head.weight"])
+
+    # print(*model.state_dict().keys(),sep="\n")
+    # print()
+    print("Model loaded successfully!")
     
     
     total_params = sum(p.numel() for p in model.parameters())
@@ -299,7 +340,7 @@ def train():
         weight_decay=weight_decay
     )
     
-    criterion = nn.CrossEntropyLoss(ignore_index=pad_idx)
+    criterion = nn.CrossEntropyLoss()
     scaler = GradScaler(enabled=(device.type == "cuda"))
     
    
