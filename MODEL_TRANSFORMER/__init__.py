@@ -358,26 +358,8 @@ class GPT2Attention(nn.Module):
         query = query.view(query.shape[0], query.shape[1], self.n_heads, self.d_k).transpose(1, 2)
         key = key.view(key.shape[0], key.shape[1], self.n_heads, self.d_k).transpose(1, 2)
         value = value.view(value.shape[0], value.shape[1], self.n_heads, self.d_k).transpose(1, 2)
-
-        seq_len = query.shape[-2]
-        query, key = self.rope(query, key, seq_len)
         
-        # Use Flash Attention if available (PyTorch 2.0+)
-        if self.use_flash_attn:
-            # Convert mask format for scaled_dot_product_attention
-            attn_mask = None
-            if not self.is_causal and mask is not None:
-                attn_mask = mask.bool() if mask.dtype != torch.bool else mask
-            
-            x = torch.nn.functional.scaled_dot_product_attention(
-                query, key, value, 
-                attn_mask=attn_mask,
-                dropout_p=self.dropout.p if self.training else 0.0,
-                is_causal=self.is_causal  # We provide our own mask
-            )
-        else:
-            # Fallback to manual attention
-            x = MultiHeadBlock.attention(query, key, value, mask, self.dropout)
+        x = GPT2Attention.attention(query, key, value, mask, self.dropout)
         
         x = x.transpose(1, 2).contiguous().view(x.shape[0], -1, self.n_heads * self.d_k)
         return self.w_o(x)
@@ -639,7 +621,7 @@ def gpt2_like_model(
     decoder = DecoderOnly(nn.ModuleList(decoder_blocks), d_model,bias=False,norm=norm)
     projection = ProjectionLayer(d_model, vocab_size,bias=bias_projection)
 
-    model = TransformerDecoderOnly(decoder, embed, projection)
+    model = GPTTransformer(decoder, embed,pos, projection)
 
     for p in model.parameters():
         if p.dim() > 1:
