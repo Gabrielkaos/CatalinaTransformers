@@ -309,7 +309,7 @@ class MultiHeadBlock(nn.Module):
 
 
 class GPT2Attention(nn.Module):
-    def __init__(self, d_model, n_heads, dropout):
+    def __init__(self, d_model, n_heads, block_size, dropout):
         super().__init__()
 
 
@@ -329,39 +329,65 @@ class GPT2Attention(nn.Module):
         self.w_o = nn.Linear(d_model, d_model)
 
         # self.use_flash_attn = use_flash_attn and hasattr(torch.nn.functional, 'scaled_dot_product_attention')
-
-
-    @staticmethod
-    def attention(query, key, value, mask, dropout: nn.Dropout):
-        d_k = query.shape[-1]
-
-        attention_scores = (query @ key.transpose(-2, -1)) / math.sqrt(d_k)
-
-        if mask is not None:
-            attention_scores.masked_fill_(mask == 0, -1e9)
-
-        attention_scores = attention_scores.softmax(dim=-1)
-
-        if dropout is not None:
-            attention_scores = dropout(attention_scores)
-
-        return attention_scores @ value
+        self.register_buffer("bias",torch.tril(torch.ones(block_size,block_size)).view(1,1,block_size, block_size))
 
     def forward(self, x, mask):
+        
+        
+        B,T,C = x.size()
 
         qkv = self.c_attn(x)
 
-        query,key,value = qkv.split(self.d_model,dim=2)
+        q,k,v = qkv.split(self.d_model,dim=2)
+
+        k = k.view(B,T,self.n_heads, C // self.n_heads).transpose(1,2)
+        q = q.view(B,T,self.n_heads, C // self.n_heads).transpose(1,2)
+        v = v.view(B,T,self.n_heads, C // self.n_heads).transpose(1,2)
+
+        attn = (q @ k.transpose(-2,-1)) * (1.0 / math.sqrt(k.size(-1)))
+
+        attn = attn.masked_fill(self.bias[:,:,:T,:T] == 0,float('-inf'))
+        attn = F.softmax(attn, dim=-1)
+        y = attn @ v
+
+        y = y.transpose(1,2).contiguous().view(B,T,C)
+
+        y = self.w_o(y)
+
+        return y
+
+
+    # @staticmethod
+    # def attention(query, key, value, mask, dropout: nn.Dropout):
+    #     d_k = query.shape[-1]
+
+    #     attention_scores = (query @ key.transpose(-2, -1)) / math.sqrt(d_k)
+
+    #     if mask is not None:
+    #         attention_scores.masked_fill_(mask == 0, float("-inf"))
+
+    #     attention_scores = attention_scores.softmax(dim=-1)
+
+    #     if dropout is not None:
+    #         attention_scores = dropout(attention_scores)
+
+    #     return attention_scores @ value
+
+    # def forward(self, x, mask):
+
+    #     qkv = self.c_attn(x)
+
+    #     query,key,value = qkv.split(self.d_model,dim=2)
 
         
-        query = query.view(query.shape[0], query.shape[1], self.n_heads, self.d_k).transpose(1, 2)
-        key = key.view(key.shape[0], key.shape[1], self.n_heads, self.d_k).transpose(1, 2)
-        value = value.view(value.shape[0], value.shape[1], self.n_heads, self.d_k).transpose(1, 2)
+    #     query = query.view(query.shape[0], query.shape[1], self.n_heads, self.d_k).transpose(1, 2)
+    #     key = key.view(key.shape[0], key.shape[1], self.n_heads, self.d_k).transpose(1, 2)
+    #     value = value.view(value.shape[0], value.shape[1], self.n_heads, self.d_k).transpose(1, 2)
         
-        x = GPT2Attention.attention(query, key, value, mask, self.dropout)
+    #     x = GPT2Attention.attention(query, key, value, mask, self.dropout)
         
-        x = x.transpose(1, 2).contiguous().view(x.shape[0], -1, self.n_heads * self.d_k)
-        return self.w_o(x)
+    #     x = x.transpose(1, 2).contiguous().view(x.shape[0], -1, self.n_heads * self.d_k)
+    #     return self.w_o(x)
 
 
 
@@ -462,11 +488,18 @@ class GPTDecoderBlock(nn.Module):
         self.self_attention = self_attention
         self.feed_forward = feed_forward_block
 
-        self.residual_conns = nn.ModuleList([GPTResidualConn(dropout,d_model) for _ in range(2)])
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+
+        self.dropout = nn.Dropout(dropout)
+
+        # self.residual_conns = nn.ModuleList([GPTResidualConn(dropout,d_model) for _ in range(2)])
 
     def forward(self, x, trgt_mask):
-        x = self.residual_conns[0](x, lambda x: self.self_attention(x,trgt_mask))
-        x = self.residual_conns[1](x, self.feed_forward)
+        # x = self.residual_conns[0](x, lambda x: self.self_attention(x,trgt_mask))
+        # x = self.residual_conns[1](x, self.feed_forward)
+        x = x + self.dropout(self.self_attention(self.norm1(x),trgt_mask))
+        x = x + self.dropout(self.feed_forward(self.norm2(x)))
         return x
 
 
@@ -611,13 +644,16 @@ class GPTTransformer(nn.Module):
         self.proj = projection
 
         #weight tying
-        # self.proj.projection_layer.weight=self.embed.embedding.weight
+        # self.proj.weight=self.embed.weight
 
     def forward(self, x, mask):
         B,T = x.size()
         pos = torch.arange(0,T, dtype=torch.long, device=x.device)
 
-        x = self.embed(x) + self.pos(pos)
+        token_emb = self.embed(x)
+        pos_emb = self.pos(pos)
+
+        x = token_emb + pos_emb
     
         x = self.decoder(x, mask)
         return self.proj(x)
@@ -637,7 +673,7 @@ def gpt2_like_model(
 
     decoder_blocks = []
     for _ in range(n_layers):
-        self_attn = GPT2Attention(d_model, n_heads, dropout)
+        self_attn = GPT2Attention(d_model, n_heads, block_size, dropout)
         ff = FeedForwardNet(d_model, 4 * d_model, dropout,activation=mlp_activation,bias=True)
         decoder_blocks.append(GPTDecoderBlock(self_attn, ff, dropout, d_model))
 
