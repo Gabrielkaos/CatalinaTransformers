@@ -542,7 +542,7 @@ def build_transformer_next_token(
 
 #encoder only
 def build_transformer_encoder(vocab_size, num_classes, d_model=512, n_layers=6,
-                          n_heads=8, dropout=0.1, dff=2048, use_flash_attn=True, device=None):
+                          n_heads=8, dropout=0.1, dff=2048, use_flash_attn=True):
     # create embed layers
     src_embed = InputEmbedding(d_model, vocab_size)
 
