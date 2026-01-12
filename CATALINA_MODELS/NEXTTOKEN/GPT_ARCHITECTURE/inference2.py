@@ -8,7 +8,7 @@ from transformers import GPT2LMHeadModel
 @torch.no_grad()
 def generate(
     model, 
-    tokenizer, 
+    tokenizer:tiktoken.Encoding, 
     prompt, 
     max_len=50,
     seq_len=1024, 
@@ -39,12 +39,16 @@ def generate(
         ix = torch.multinomial(topk_probs,1)
         xcol = torch.gather(topk_indices,-1,ix)
 
+        if tokenizer.decode([xcol[0].item()]) == "<|endoftext|>":
+            break
+
         x = torch.cat((x,xcol),dim=1)
+
         
     
-    # x = x[0][len(token_ids):].tolist()
+    x = x[0][len(token_ids):].tolist()
 
-    return tokenizer.decode(x[0].tolist())
+    return tokenizer.decode(x)
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -72,25 +76,25 @@ if __name__ == "__main__":
     
     print(f"Data vocab:{vocab}")
     try:
-        data_model: dict  =  torch.load("gpt.pth")
-        model.load_state_dict(data_model["model_state"])
+        # data_model: dict  =  torch.load("gpt.pth")
+        # model.load_state_dict(data_model["model_state"])
         
-        # checkpoint = torch.load("checkpoints/best_model.pth", map_location=device)
-        # state_dict = checkpoint["model_state"]
+        checkpoint = torch.load("brain.pth", map_location=device)
+        state_dict = checkpoint["model_state"]
 
         
-        # new_state_dict = {}
-        # for k, v in state_dict.items():
-        #     if k.startswith("_orig_mod."):
-        #         new_k = k[len("_orig_mod."):]
-        #     else:
-        #         new_k = k
-        #     new_state_dict[new_k] = v
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith("_orig_mod."):
+                new_k = k[len("_orig_mod."):]
+            else:
+                new_k = k
+            new_state_dict[new_k] = v
 
-        # model.load_state_dict(new_state_dict) 
+        model.load_state_dict(new_state_dict) 
 
         #load gpt2
-        # model_hf = GPT2LMHeadModel.from_pretrained("vicgalle/gpt2-alpaca")
+        # model_hf = GPT2LMHeadModel.from_pretrained("gpt2")
         # sd_hf = model_hf.state_dict()
         
         # print("Copying gpt2's weights")
@@ -129,10 +133,6 @@ if __name__ == "__main__":
         # model.decoder.norm.weight.data.copy_(sd_hf["transformer.ln_f.weight"])
         # model.decoder.norm.bias.data.copy_(sd_hf["transformer.ln_f.bias"])
 
-        # #copy gpt2's lm_head
-        # print("Copying lm head...")
-        # model.proj.projection_layer.weight.data.copy_(sd_hf["lm_head.weight"])
-
         # # print(*model.state_dict().keys(),sep="\n")
         # # print()
         
@@ -149,13 +149,21 @@ if __name__ == "__main__":
     print(f"Total parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
 
-    
+
+    instruction = "Classify the word that is subject of the sentence."
+    formatted = (
+            f"Instruction:\n{instruction}\n\n"
+            f"Input:\nThe dog ate his food.\n\n"
+            f"Response:\n"
+        )
+
+    # torch.save({"model_state":model.state_dict()},"gpt.pth")
 
 
     print("\n=== Generating ===")
     output = generate(
-        model, tokenizer, "Hello I am a language model", 
-        max_len=30,
+        model, tokenizer, formatted, 
+        max_len=512,
         device=device,
     )
     print(output)
