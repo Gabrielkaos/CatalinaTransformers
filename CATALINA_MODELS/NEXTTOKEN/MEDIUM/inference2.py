@@ -68,8 +68,6 @@ if __name__ == "__main__":
         "bias_projection":False,
         "mlp_activation":"gelu"
     }
-
-
         
     config["vocab_size"] = vocab
     model = gpt2_like_model(**config).to(device)
