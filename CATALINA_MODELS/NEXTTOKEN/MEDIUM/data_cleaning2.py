@@ -114,7 +114,7 @@ def process_instruction_dataset_tiktoken(
 if __name__ == "__main__":
     
     x = process_instruction_dataset_tiktoken(
-        dataset_name="yahma/alpaca-cleaned",
+        dataset_name="vicgalle/alpaca-gpt4",
         max_seq_len=256, 
         split="train"
     )

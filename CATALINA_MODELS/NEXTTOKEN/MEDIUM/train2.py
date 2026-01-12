@@ -210,18 +210,18 @@ def train():
    
     config = {
         "vocab_size": None,
-        "d_model":768,
-        "n_layers":12,
-        "n_heads":12,
+        "d_model":1024,
+        "n_layers":24,
+        "n_heads":16,
         "dropout":0.2,  
         "bias_projection":False,
         "mlp_activation":"gelu"
     }
     
    
-    batch_size = 2
+    batch_size = 4
     gradient_accumulation_steps = 10  
-    lr = 3e-4
+    lr = 2e-4
     weight_decay = 0.01
     epochs = 2
     warmup_steps = 1000

@@ -74,8 +74,8 @@ if __name__ == "__main__":
     
     print(f"Data vocab:{vocab}")
     try:
-        # data_model: dict  =  torch.load("gpt.pth")
-        # model.load_state_dict(data_model["model_state"])
+        data_model=torch.load("gpt.pth")
+        model.load_state_dict(data_model["model_state"])
         
         # checkpoint = torch.load("brain.pth", map_location=device)
         # state_dict = checkpoint["model_state"]
@@ -92,44 +92,44 @@ if __name__ == "__main__":
         # model.load_state_dict(new_state_dict) 
 
         #load gpt2
-        model_hf = GPT2LMHeadModel.from_pretrained("gpt2-medium")
-        sd_hf = model_hf.state_dict()
+        # model_hf = GPT2LMHeadModel.from_pretrained("gpt2-medium")
+        # sd_hf = model_hf.state_dict()
         
-        print("Copying gpt2's weights")
-        print("Copying embedding...")
-        #copy gpt2's embedding
-        model.embed.weight.data.copy_(sd_hf["transformer.wte.weight"])
-        model.pos.weight.data.copy_(sd_hf["transformer.wpe.weight"])
+        # print("Copying gpt2's weights")
+        # print("Copying embedding...")
+        # #copy gpt2's embedding
+        # model.embed.weight.data.copy_(sd_hf["transformer.wte.weight"])
+        # model.pos.weight.data.copy_(sd_hf["transformer.wpe.weight"])
         
-        #copy gpt2 attention projection
-        print("Copying attention...")
-        for i in range(config["n_layers"]):
-            layer = model.decoder.layers[i]
-            #proj
-            layer.self_attention.w_o.weight.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"].t())
-            layer.self_attention.w_o.bias.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
+        # #copy gpt2 attention projection
+        # print("Copying attention...")
+        # for i in range(config["n_layers"]):
+        #     layer = model.decoder.layers[i]
+        #     #proj
+        #     layer.self_attention.w_o.weight.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"].t())
+        #     layer.self_attention.w_o.bias.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
             
-            #attn
-            layer.self_attention.c_attn.weight.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.weight"].t())
-            layer.self_attention.c_attn.bias.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
+        #     #attn
+        #     layer.self_attention.c_attn.weight.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.weight"].t())
+        #     layer.self_attention.c_attn.bias.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
             
-            #mlp
-            if config["mlp_activation"]=="gelu":
-                layer.feed_forward.linear1.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
-                layer.feed_forward.linear2.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
-                layer.feed_forward.linear1.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.bias"])
-                layer.feed_forward.linear2.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.bias"])
-            # transformer.h.9.mlp.c_fc.weight
+        #     #mlp
+        #     if config["mlp_activation"]=="gelu":
+        #         layer.feed_forward.linear1.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
+        #         layer.feed_forward.linear2.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
+        #         layer.feed_forward.linear1.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.bias"])
+        #         layer.feed_forward.linear2.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.bias"])
+        #     # transformer.h.9.mlp.c_fc.weight
 
-            #copy layer norms
-            layer.norm1.weight.data.copy_(sd_hf[f"transformer.h.{i}.ln_1.weight"])
-            layer.norm1.bias.data.copy_(sd_hf[f"transformer.h.{i}.ln_1.bias"])
-            layer.norm2.weight.data.copy_(sd_hf[f"transformer.h.{i}.ln_2.weight"])
-            layer.norm2.bias.data.copy_(sd_hf[f"transformer.h.{i}.ln_2.bias"])
+        #     #copy layer norms
+        #     layer.norm1.weight.data.copy_(sd_hf[f"transformer.h.{i}.ln_1.weight"])
+        #     layer.norm1.bias.data.copy_(sd_hf[f"transformer.h.{i}.ln_1.bias"])
+        #     layer.norm2.weight.data.copy_(sd_hf[f"transformer.h.{i}.ln_2.weight"])
+        #     layer.norm2.bias.data.copy_(sd_hf[f"transformer.h.{i}.ln_2.bias"])
 
-        #last norm copy
-        model.decoder.norm.weight.data.copy_(sd_hf["transformer.ln_f.weight"])
-        model.decoder.norm.bias.data.copy_(sd_hf["transformer.ln_f.bias"])
+        # #last norm copy
+        # model.decoder.norm.weight.data.copy_(sd_hf["transformer.ln_f.weight"])
+        # model.decoder.norm.bias.data.copy_(sd_hf["transformer.ln_f.bias"])
 
         
         print("Model loaded successfully!")
@@ -144,6 +144,8 @@ if __name__ == "__main__":
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
+
+    torch.save({"model_state":model.state_dict()},"gpt.pth")
 
 
     # instruction = "Classify the word that is subject of the sentence."
