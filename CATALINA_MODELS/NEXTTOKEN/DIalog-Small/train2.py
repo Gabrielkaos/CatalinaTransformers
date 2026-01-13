@@ -108,9 +108,6 @@ def evaluate(model, loader, criterion, device):
     for batch in loader:
         x = batch["input"].to(device)
         y = batch["label"].to(device)
-        
-       
-        
        
         with autocast(device_type=device.type, enabled=(device.type == "cuda"),dtype=torch.bfloat16):
             logits = model(x)

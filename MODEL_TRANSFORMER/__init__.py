@@ -153,43 +153,6 @@ class LayerNormalization(nn.Module):
             return self.alpha * normalized  + self.bias
         return self.alpha * normalized
 
-#better than GELU (idk)
-# class SwiGLU(nn.Module):
-#     def forward(self, x):
-#         x, gate = x.chunk(2, dim=-1)
-#         return F.silu(gate) * x
-
-# class FeedForwardNet(nn.Module):
-#     def __init__(self, d_model, dff, dropout, activation="relu"):
-#         super().__init__()
-
-#         # self.linear1 = nn.Linear(d_model, dff)
-
-        
-
-#         # self.linear2 = nn.Linear(dff, d_model)
-
-#         # if activation=="gelu":
-#         #     self.activation = nn.GELU()
-#         # elif activation=="swiglu":
-#         #     self.activation = SwiGLU()
-#         # else:
-#         #     self.activation = nn.ReLU()
-
-#         if activation == "swiglu":
-#             self.linear1 = nn.Linear(d_model, 2 * dff)
-#             self.activation = SwiGLU()
-#             self.linear2 = nn.Linear(dff, d_model)
-#         else:
-#             self.linear1 = nn.Linear(d_model, dff)
-#             self.activation = nn.GELU() if activation == "gelu" else nn.ReLU()
-#             self.linear2 = nn.Linear(dff, d_model)
-
-#         self.dropout = nn.Dropout(dropout)
-
-#     def forward(self, x):
-#         return self.linear2(self.dropout(self.activation(self.linear1(x))))
-
 class FeedForwardNet(nn.Module):
     def __init__(self, d_model, dff, dropout, activation="gelu", bias=False):
         super().__init__()
@@ -344,11 +307,11 @@ class GPT2Attention(nn.Module):
         q = q.view(B,T,self.n_heads, C // self.n_heads).transpose(1,2)
         v = v.view(B,T,self.n_heads, C // self.n_heads).transpose(1,2)
 
-        attn = (q @ k.transpose(-2,-1)) * (1.0 / math.sqrt(k.size(-1)))
-
-        attn = attn.masked_fill(self.bias[:,:,:T,:T] == 0,float('-inf'))
-        attn = F.softmax(attn, dim=-1)
-        y = attn @ v
+        # attn = (q @ k.transpose(-2,-1)) * (1.0 / math.sqrt(k.size(-1)))
+        # attn = attn.masked_fill(self.bias[:,:,:T,:T] == 0,float('-inf'))
+        # attn = F.softmax(attn, dim=-1)
+        # y = attn @ v
+        y = F.scaled_dot_product_attention(q,k,v,is_causal=True)
 
         y = y.transpose(1,2).contiguous().view(B,T,C)
 
