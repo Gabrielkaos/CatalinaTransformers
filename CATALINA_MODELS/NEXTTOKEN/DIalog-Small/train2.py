@@ -7,8 +7,42 @@ import time
 from pathlib import Path
 from tqdm import tqdm
 from MODEL_TRANSFORMER import gpt2_like_model
-import tiktoken
-from transformers import GPT2LMHeadModel
+
+def freeze_for_dialogue(model, freeze_until_layer=8):
+    """
+    freeze_until_layer:
+      GPT-2 small (12 layers): 8
+      GPT-2 medium (24 layers): 18
+    """
+
+    for i, layer in enumerate(model.decoder.layers):
+        if i < freeze_until_layer:
+            for name, param in layer.named_parameters():
+                # keep LayerNorms trainable
+                if "norm" in name.lower():
+                    param.requires_grad = True
+                else:
+                    param.requires_grad = False
+        else:
+            # top layers fully trainable
+            for param in layer.parameters():
+                param.requires_grad = True
+
+    # Freeze embeddings
+    for param in model.embed.parameters():
+        param.requires_grad = False
+    for param in model.pos.parameters():
+        param.requires_grad = False
+
+    # Final LayerNorm stays trainable
+    for param in model.decoder.norm.parameters():
+        param.requires_grad = True
+
+    # Print stats
+    # trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # total = sum(p.numel() for p in model.parameters())
+    # print(f"Trainable params: {trainable:_}/{total:_} ({100*trainable/total:.2f}%)")
+
 
 class LanguageModelDataset(Dataset):
     def __init__(self, sequences):
@@ -23,12 +57,6 @@ class LanguageModelDataset(Dataset):
             "input": seq[:-1],
             "label": seq[1:]
         }
-
-
-def causal_mask(size, device):
-    
-    return torch.tril(torch.ones(size, size, device=device, dtype=torch.bool))
-
 
 def get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps, min_lr=0):
     
@@ -69,7 +97,7 @@ def compute_metrics(logits, labels, pad_idx):
 
 
 @torch.no_grad()
-def evaluate(model, loader, criterion, device, mask_cache):
+def evaluate(model, loader, criterion, device):
     
     model.eval()
     total_loss = 0
@@ -82,13 +110,9 @@ def evaluate(model, loader, criterion, device, mask_cache):
         y = batch["label"].to(device)
         
        
-        seq_len = x.size(1)
-        if seq_len not in mask_cache:
-            mask_cache[seq_len] = causal_mask(seq_len, device)
-        mask = mask_cache[seq_len]
         
        
-        with autocast(device_type=device.type, enabled=(device.type == "cuda")):
+        with autocast(device_type=device.type, enabled=(device.type == "cuda"),dtype=torch.bfloat16):
             logits = model(x)
             loss = criterion(logits.view(-1, logits.size(-1)), y.view(-1))
         
@@ -107,7 +131,7 @@ def evaluate(model, loader, criterion, device, mask_cache):
 
 
 def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device, 
-                mask_cache, gradient_accumulation_steps=1, max_grad_norm=1.0):
+                gradient_accumulation_steps=1, max_grad_norm=1.0):
    
     model.train()
     total_loss = 0
@@ -121,14 +145,9 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
         x = batch["input"].to(device, non_blocking=True)
         y = batch["label"].to(device, non_blocking=True)
         
-       
-        seq_len = x.size(1)
-        if seq_len not in mask_cache:
-            mask_cache[seq_len] = causal_mask(seq_len, device)
-        mask = mask_cache[seq_len]
         
        
-        with autocast(device_type=device.type, enabled=(device.type == "cuda")):
+        with autocast(device_type=device.type, enabled=(device.type == "cuda"),dtype=torch.bfloat16):
             logits = model(x)
             loss = criterion(logits.view(-1, logits.size(-1)), y.view(-1))
             loss = loss / gradient_accumulation_steps  
@@ -140,7 +159,7 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
         if (batch_idx + 1) % gradient_accumulation_steps == 0:
             
             scaler.unscale_(optimizer)
-            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             
            
             scaler.step(optimizer)
@@ -206,6 +225,7 @@ def train():
     # ========== Configuration ==========
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
+    torch.set_float32_matmul_precision('high')
     
    
     config = {
@@ -213,15 +233,15 @@ def train():
         "d_model":768,
         "n_layers":12,
         "n_heads":12,
-        "dropout":0.2,  
+        "dropout":0.1,  
         "bias_projection":False,
         "mlp_activation":"gelu"
     }
     
    
-    batch_size = 2
-    gradient_accumulation_steps = 10  
-    lr = 3e-4
+    batch_size = 6
+    gradient_accumulation_steps = 12 
+    lr = 2e-5
     weight_decay = 0.01
     epochs = 2
     warmup_steps = 1000
@@ -234,7 +254,7 @@ def train():
    
     save_dir = Path("checkpoints")
     save_dir.mkdir(exist_ok=True)
-    save_every = 1 
+    save_every = 5
     resume_from = None  
     
     # ========== Load Data ==========
@@ -284,15 +304,16 @@ def train():
     # ========== Build Model ==========
     print("Building model...")
     model = gpt2_like_model(**config).to(device)
-    model.load_state_dict(torch.load("gpt.pth",map_location=device)["model_state"])
+    model.load_state_dict(torch.load("gpt2.pth",map_location=device)["model_state"])
     print("Model loaded successfully!")
     
-    
+    #freeze some layers
+    freeze_for_dialogue(model,freeze_until_layer=8)
+
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
-    
     
     if hasattr(torch, 'compile'):
         print("Compiling model with torch.compile...")
@@ -306,7 +327,8 @@ def train():
         weight_decay=weight_decay
     )
     
-    criterion = nn.CrossEntropyLoss()
+    #lets ignore the pad idx or eos_token
+    criterion = nn.CrossEntropyLoss(ignore_index=50256)
     scaler = GradScaler(enabled=(device.type == "cuda"))
     
    
@@ -357,7 +379,7 @@ def train():
        
         if (epoch + 1) % val_every == 0:
             print("\nValidating...")
-            val_metrics = evaluate(model, val_loader, criterion, device, mask_cache)
+            val_metrics = evaluate(model, val_loader, criterion, device)
             
             print(f"Val - Loss: {val_metrics['loss']:.4f} | "
                   f"Perplexity: {val_metrics['perplexity']:.2f} | "
@@ -367,16 +389,19 @@ def train():
             if val_metrics['loss'] < best_val_loss:
                 best_val_loss = val_metrics['loss']
                 best_path = "best_model.pth"
-                save_checkpoint(
-                    model, optimizer, scheduler, scaler, epoch + 1,
-                    {"train": train_metrics, "val": val_metrics, "best_val_loss": best_val_loss},
-                    best_path
-                )
+                print("Saving best model...")
+                # save_checkpoint(
+                #     model, optimizer, scheduler, scaler, epoch + 1,
+                #     {"train": train_metrics, "val": val_metrics, "best_val_loss": best_val_loss},
+                #     best_path
+                # )
+                torch.save({"model_state":model.state_dict()}, best_path)
                 print(f"✓ Saved best model (val_loss: {best_val_loss:.4f})")
         
         # Periodic checkpoint
         if (epoch + 1) % save_every == 0:
             checkpoint_path = save_dir / f"checkpoint_epoch_{epoch + 1}.pth"
+            
             save_checkpoint(
                 model, optimizer, scheduler, scaler, epoch + 1,
                 {"train": train_metrics, "best_val_loss": best_val_loss},
@@ -386,11 +411,14 @@ def train():
         
         # Always save latest
         latest_path = "latest.pth"
+        print("Saving latest...")
         save_checkpoint(
             model, optimizer, scheduler, scaler, epoch + 1,
             {"train": train_metrics, "best_val_loss": best_val_loss},
             latest_path
         )
+        print("Saved latest")
+
     
     print("\n" + "="*50)
     print("Training completed!")

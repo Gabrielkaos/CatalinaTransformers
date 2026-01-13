@@ -6,9 +6,44 @@ import math
 import time
 from pathlib import Path
 from tqdm import tqdm
-from MODEL_TRANSFORMER import gpt2_like_model
-import tiktoken
-from transformers import GPT2LMHeadModel
+# from MODEL_TRANSFORMER import gpt2_like_model
+
+def freeze_bottom_layers(model, n_layers_to_freeze=12):
+    if not hasattr(model, 'decoder') or not hasattr(model.decoder, 'layers'):
+        print("Warning: Model structure not recognized. Cannot freeze layers.")
+        return
+    
+    total_layers = len(model.decoder.layers)
+    n_layers_to_freeze = min(n_layers_to_freeze, total_layers)
+    
+    for i in range(n_layers_to_freeze):
+        layer = model.decoder.layers[i]
+        print(f"Freezing {i} layer")
+        for param in layer.parameters():
+            param.requires_grad = False
+    
+    print(f"Froze bottom {n_layers_to_freeze}/{total_layers} layers")
+    
+    # Show trainable parameter count after freezing
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Trainable parameters: {trainable_params:_}/{total_params:_} ({100*trainable_params/total_params:.1f}%)")
+
+
+def freeze_embeddings(model):
+    if hasattr(model, 'embed'):
+        print("Embeddings frozen")
+        for param in model.embed.parameters():
+            param.requires_grad = False
+    if hasattr(model, 'pos'):
+        print("Position Embeddings frozen")
+        for param in model.pos.parameters():
+            param.requires_grad = False
+
+
+def freeze_bottom_and_embeddings(model, n_layers_to_freeze=12):
+    freeze_embeddings(model)
+    freeze_bottom_layers(model, n_layers_to_freeze)
 
 class LanguageModelDataset(Dataset):
     def __init__(self, sequences):
@@ -89,7 +124,7 @@ def evaluate(model, loader, criterion, device, mask_cache):
         
        
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            logits = model(x, mask)
+            logits = model(x)
             loss = criterion(logits.view(-1, logits.size(-1)), y.view(-1))
         
         
@@ -129,7 +164,7 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
         
        
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            logits = model(x, mask)
+            logits = model(x)
             loss = criterion(logits.view(-1, logits.size(-1)), y.view(-1))
             loss = loss / gradient_accumulation_steps  
         
@@ -219,9 +254,9 @@ def train():
     }
     
    
-    batch_size = 4
-    gradient_accumulation_steps = 10  
-    lr = 2e-4
+    batch_size = 6
+    gradient_accumulation_steps = 12 
+    lr = 5e-5
     weight_decay = 0.01
     epochs = 2
     warmup_steps = 1000
@@ -234,7 +269,7 @@ def train():
    
     save_dir = Path("checkpoints")
     save_dir.mkdir(exist_ok=True)
-    save_every = 1 
+    save_every = 5
     resume_from = None  
     
     # ========== Load Data ==========
@@ -288,15 +323,15 @@ def train():
     print("Model loaded successfully!")
     
     
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Total parameters: {total_params:,}")
-    print(f"Trainable parameters: {trainable_params:,}")
+    # total_params = sum(p.numel() for p in model.parameters())
+    # trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # print(f"Total parameters: {total_params:,}")
+    # print(f"Trainable parameters: {trainable_params:,}")
+    freeze_bottom_and_embeddings(model)
     
-    
-    if hasattr(torch, 'compile'):
-        print("Compiling model with torch.compile...")
-        model = torch.compile(model)
+    # if hasattr(torch, 'compile'):
+    #     print("Compiling model with torch.compile...")
+    #     model = torch.compile(model)
     
     # ========== Setup Training ==========
     optimizer = torch.optim.AdamW(
@@ -367,16 +402,19 @@ def train():
             if val_metrics['loss'] < best_val_loss:
                 best_val_loss = val_metrics['loss']
                 best_path = "best_model.pth"
-                save_checkpoint(
-                    model, optimizer, scheduler, scaler, epoch + 1,
-                    {"train": train_metrics, "val": val_metrics, "best_val_loss": best_val_loss},
-                    best_path
-                )
+                print("Saving best model...")
+                # save_checkpoint(
+                #     model, optimizer, scheduler, scaler, epoch + 1,
+                #     {"train": train_metrics, "val": val_metrics, "best_val_loss": best_val_loss},
+                #     best_path
+                # )
+                torch.save({"model_state":model.state_dict()}, best_path)
                 print(f"✓ Saved best model (val_loss: {best_val_loss:.4f})")
         
         # Periodic checkpoint
         if (epoch + 1) % save_every == 0:
             checkpoint_path = save_dir / f"checkpoint_epoch_{epoch + 1}.pth"
+            
             save_checkpoint(
                 model, optimizer, scheduler, scaler, epoch + 1,
                 {"train": train_metrics, "best_val_loss": best_val_loss},
@@ -386,11 +424,14 @@ def train():
         
         # Always save latest
         latest_path = "latest.pth"
+        print("Saving latest...")
         save_checkpoint(
             model, optimizer, scheduler, scaler, epoch + 1,
             {"train": train_metrics, "best_val_loss": best_val_loss},
             latest_path
         )
+        print("Saved latest")
+
     
     print("\n" + "="*50)
     print("Training completed!")

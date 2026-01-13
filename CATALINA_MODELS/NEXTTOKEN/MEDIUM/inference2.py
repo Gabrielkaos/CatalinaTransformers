@@ -5,14 +5,54 @@ import tiktoken
 from transformers import GPT2LMHeadModel
 
 
+def freeze_bottom_layers(model, n_layers_to_freeze=12):
+    if not hasattr(model, 'decoder') or not hasattr(model.decoder, 'layers'):
+        print("Warning: Model structure not recognized. Cannot freeze layers.")
+        return
+    
+    total_layers = len(model.decoder.layers)
+    n_layers_to_freeze = min(n_layers_to_freeze, total_layers)
+    
+    for i in range(n_layers_to_freeze):
+        layer = model.decoder.layers[i]
+        print(f"Freezing {i} layer")
+        for param in layer.parameters():
+            param.requires_grad = False
+    
+    print(f"Froze bottom {n_layers_to_freeze}/{total_layers} layers")
+    
+    # Show trainable parameter count after freezing
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Trainable parameters: {trainable_params:_}/{total_params:_} ({100*trainable_params/total_params:.1f}%)")
+
+
+def freeze_embeddings(model):
+    if hasattr(model, 'embed'):
+        print("Embeddings frozen")
+        for param in model.embed.parameters():
+            param.requires_grad = False
+    if hasattr(model, 'pos'):
+        print("Position Embeddings frozen")
+        for param in model.pos.parameters():
+            param.requires_grad = False
+
+
+def freeze_bottom_and_embeddings(model, n_layers_to_freeze=12):
+    freeze_embeddings(model)
+    freeze_bottom_layers(model, n_layers_to_freeze)
+
+
 @torch.no_grad()
 def generate(
     model, 
     tokenizer:tiktoken.Encoding, 
     prompt, 
     max_len=50,
+    greedy=False,
     seq_len=1024, 
     device="cpu",
+    top_k=0.2
 ):
     
     model.eval()
@@ -32,15 +72,18 @@ def generate(
         logits = model(x)
         logits = logits[:, -1, :]
 
-        probs = F.softmax(logits,dim=-1)
+        if not greedy:
+            probs = F.softmax(logits,dim=-1)
+            topk_probs, topk_indices = torch.topk(probs,int(top_k * 100),dim=-1)
+            ix = torch.multinomial(topk_probs,1)
+            xcol = torch.gather(topk_indices,-1,ix)
+            # print(xcol.shape)
+        else:
+            xcol = torch.argmax(logits,dim=-1,keepdim=True)
+            # print(xcol.shape)
 
-        topk_probs, topk_indices = torch.topk(probs,50,dim=-1)
-
-        ix = torch.multinomial(topk_probs,1)
-        xcol = torch.gather(topk_indices,-1,ix)
-
-        if tokenizer.decode([xcol[0].item()]) == "<|endoftext|>":
-            break
+        out =  tokenizer.decode([xcol[0].item()])
+        if out == "<|endoftext|>":break
 
         x = torch.cat((x,xcol),dim=1)
 
@@ -74,7 +117,7 @@ if __name__ == "__main__":
     
     print(f"Data vocab:{vocab}")
     try:
-        data_model=torch.load("gpt.pth")
+        data_model=torch.load("best_model.pth",map_location="cpu")
         model.load_state_dict(data_model["model_state"])
         
         # checkpoint = torch.load("brain.pth", map_location=device)
@@ -138,30 +181,42 @@ if __name__ == "__main__":
         print("Warning: Model checkpoint not found. Using random weights.")
     except KeyError:
         print("Warning: Checkpoint format incorrect. Expected 'model_state' key.")
-    
+
+
     model.eval()
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
 
-    torch.save({"model_state":model.state_dict()},"gpt.pth")
+    # freeze_bottom_and_embeddings(model)
+
+    # torch.save({"model_state":model.state_dict()},"gpt.pth")
+
+    while True:
+        instruction = input("Instruction:")
+        inputs = input("Input:")
+        max_new = int(input("MaxNewLen:"))
+        if instruction=="quit":break
+
+        if inputs:
+            formatted = (
+                    f"Instruction:\n{instruction}\n\n"
+                    f"Input:\n{inputs}\n\n"
+                    f"Response:\n"
+                )
+        else:
+            formatted = (
+                    f"Instruction:\n{instruction}\n\n"
+                    f"Response:\n"
+                )
 
 
-    # instruction = "Classify the word that is subject of the sentence."
-    # formatted = (
-    #         f"Instruction:\n{instruction}\n\n"
-    #         f"Input:\nThe dog ate his food.\n\n"
-    #         f"Response:\n"
-    #     )
-
-    # # torch.save({"model_state":model.state_dict()},"gpt.pth")
-
-
-    # print("\n=== Generating ===")
-    # output = generate(
-    #     model, tokenizer, formatted, 
-    #     max_len=512,
-    #     device=device,
-    # )
-    # print(output)
+        print("\n=== Generating ===")
+        output = generate(
+            model, tokenizer, formatted, 
+            max_len=max_new,
+            device=device,
+            top_k=0.1
+        )
+        print(output)
