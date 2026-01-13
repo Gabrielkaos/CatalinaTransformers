@@ -114,7 +114,7 @@ def evaluate(model, loader, criterion, device):
        
         with autocast(device_type=device.type, enabled=(device.type == "cuda"),dtype=torch.bfloat16):
             logits = model(x)
-            loss = criterion(logits.view(-1, logits.size(-1)), y.view(-1))
+            criterion(logits.view(-1, logits.size(-1)), y.view(-1))
         
         
         metrics = compute_metrics(logits, y, criterion.ignore_index)
