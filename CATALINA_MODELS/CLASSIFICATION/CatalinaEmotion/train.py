@@ -33,44 +33,6 @@ class EmotionDataset(Dataset):
 
 
 
-def freeze_for_dialogue(model, freeze_until_layer=8):
-    """
-    freeze_until_layer:
-      GPT-2 small (12 layers): 8
-      GPT-2 medium (24 layers): 18
-    """
-
-    for i, layer in enumerate(model.decoder.layers):
-        if i < freeze_until_layer:
-            for name, param in layer.named_parameters():
-                # keep LayerNorms trainable
-                if "norm" in name.lower():
-                    param.requires_grad = True
-                else:
-                    param.requires_grad = False
-        else:
-            # top layers fully trainable
-            for param in layer.parameters():
-                param.requires_grad = True
-
-    # Freeze embeddings
-    for param in model.embed.parameters():
-        param.requires_grad = False
-    for param in model.pos.parameters():
-        param.requires_grad = False
-
-    # Final LayerNorm stays trainable
-    for param in model.decoder.norm.parameters():
-        param.requires_grad = True
-
-    # Print stats
-    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    total = sum(p.numel() for p in model.parameters())
-    print(f"Trainable params: {trainable:_}/{total:_} ({100*trainable/total:.2f}%)")
-
-
-
-
 def get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps, min_lr=0):
 
     def lr_lambda(current_step):
@@ -129,17 +91,19 @@ def evaluate(model, loader, criterion, device, is_multilabel=False):
 
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            logits = model(x,mask)[:,0,:]
-            loss = criterion(logits, y)
+            logits = model(x,mask)
+            mask = mask.unsqueeze(-1)        # [B, T, 1]
+            pooled = (logits * mask).sum(dim=1) / mask.sum(dim=1)
+            loss = criterion(pooled, y)
 
 
         if is_multilabel:
-            predictions = (torch.sigmoid(logits) > 0.5).float()
+            predictions = (torch.sigmoid(pooled) > 0.2).float()
             accuracy = (predictions == y).float().mean()
         else:
             if y.dim() > 1:
                 y = y.squeeze(-1)
-            predictions = logits.argmax(dim=-1)
+            predictions = pooled.argmax(dim=-1)
             accuracy = (predictions == y).float().mean()
 
         total_loss += loss.item()
@@ -169,8 +133,10 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
         y = batch["label"].to(device, non_blocking=True)
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            logits = model(x,mask)[:,0,:]
-            loss = criterion(logits, y)
+            logits = model(x,mask)
+            mask = mask.unsqueeze(-1)        # [B, T, 1]
+            pooled = (logits * mask).sum(dim=1) / mask.sum(dim=1)
+            loss = criterion(pooled, y)
             loss = loss / gradient_accumulation_steps
 
 
@@ -193,14 +159,14 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
 
         with torch.no_grad():
             if is_multilabel:
-                predictions = (torch.sigmoid(logits) > 0.5).float()
+                predictions = (torch.sigmoid(pooled) > 0.2).float()
                 accuracy = (predictions == y).float().mean()
             else:
                 if y.dim() > 1:
                     y_flat = y.squeeze(-1)
                 else:
                     y_flat = y
-                predictions = logits.argmax(dim=-1)
+                predictions = pooled.argmax(dim=-1)
                 accuracy = (predictions == y_flat).float().mean()
 
 
@@ -363,7 +329,6 @@ def train():
     model.decoder.norm.weight.data.copy_(sd_hf["transformer.ln_f.weight"])
     model.decoder.norm.bias.data.copy_(sd_hf["transformer.ln_f.bias"])
 
-    freeze_for_dialogue(model)
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total = sum(p.numel() for p in model.parameters())
     print(f"Trainable params: {trainable:_}/{total:_} ({100*trainable/total:.2f}%)")
@@ -385,7 +350,17 @@ def train():
 
 
     if is_multilabel:
-        criterion = nn.BCEWithLogitsLoss()
+        counts = torch.tensor([
+            4129, 2328, 1567, 2470, 2939, 1087, 1368, 2191,
+            641, 1269, 2022, 793, 303, 853, 596, 2662,
+            77, 1452, 2086, 164, 1581, 111, 1110, 153,
+            545, 1326, 1060, 14216
+        ], dtype=torch.float)
+
+        N = len(sequences)
+        pos_weight = (N - counts) / counts
+
+        criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight.to(device))
         print("Using BCEWithLogitsLoss for multi-label classification")
     else:
         criterion = nn.CrossEntropyLoss()

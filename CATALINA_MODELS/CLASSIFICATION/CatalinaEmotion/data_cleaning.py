@@ -77,3 +77,14 @@ if __name__ == "__main__":
     x = data["x"]
     y = data["label"]
     label_map = data["label_map"]
+
+
+    only_neutral = [0] * 28
+
+    for i in y:
+        for j in range(28):
+            only_neutral[j] += i[j].item()==1
+
+
+    print(only_neutral)
+    print(len(y))

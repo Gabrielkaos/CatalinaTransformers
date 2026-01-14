@@ -76,7 +76,7 @@ def predict(text: str):
     logits = model(input_ids,mask)[:,0,:]
     probs = torch.softmax(logits, dim=1)
     # preds = (probs > 0.5).nonzero(as_tuple=False).squeeze(-1)
-    # print(probs)
+    print(probs)
     return {
         label_map[i]: probs[0][i].item() * 100
         for i in range(num_classes)
