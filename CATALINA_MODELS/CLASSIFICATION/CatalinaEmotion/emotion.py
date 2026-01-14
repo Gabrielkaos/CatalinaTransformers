@@ -28,11 +28,11 @@ tokenizer = tiktoken.get_encoding("gpt2")
 # -------------------------
 config = {
     "vocab_size": 50257,
-    "num_class": 28,
+    "num_class": None,
     "d_model" : 768,
     "n_layers" : 12,
     "n_heads" : 12,
-    "is_causal" : True,
+    "is_causal" : False,
     "block_size" : 1024,
     "dropout" : 0.1,
     "mlp_activation" : "gelu"
@@ -65,22 +65,20 @@ def predict(text: str):
     tokens = tokenizer.encode(text)
     tokens = tokens[:MAX_LEN]
 
-    # pad
-    pad_len = MAX_LEN - len(tokens)
-    tokens = tokens + [PAD_IDX] * pad_len
-
     input_ids = torch.tensor(tokens, dtype=torch.long, device=DEVICE).unsqueeze(0)
 
     mask = (input_ids != PAD_IDX)
     # forward
-    logits = model(input_ids,mask)[:,0,:]
-    probs = torch.softmax(logits, dim=1)
-    # preds = (probs > 0.5).nonzero(as_tuple=False).squeeze(-1)
-    print(probs)
+    logits = model(input_ids,mask)
+    mask = mask.unsqueeze(-1)        # [B, T, 1]
+    pooled = (logits * mask).sum(dim=1) / mask.sum(dim=1)
+    probs = torch.sigmoid(pooled)[0]
+
     return {
-        label_map[i]: probs[0][i].item() * 100
+        label_map[i]: probs[i].item()
         for i in range(num_classes)
     }
+
 
 
 # -------------------------
