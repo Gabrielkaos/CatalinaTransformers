@@ -73,6 +73,10 @@ def predict(text: str):
     mask = mask.unsqueeze(-1)        # [B, T, 1]
     pooled = (logits * mask).sum(dim=1) / mask.sum(dim=1)
     probs = torch.sigmoid(pooled)[0]
+    # mask = probs >= 0.5
+
+    # # selected_probs = probs[mask]
+    # selected_indices = mask.nonzero(as_tuple=True)[0]
 
     return {
         label_map[i]: probs[i].item()
@@ -93,4 +97,5 @@ if __name__ == "__main__":
 
         probs = predict(text)
         for k, v in sorted(probs.items(), key=lambda x: x[1], reverse=True):
-            print(f"{k}: {v:6.2f}%")
+            if v >= 0.5:
+                print(f"{k}: {v:6.2f}%")
