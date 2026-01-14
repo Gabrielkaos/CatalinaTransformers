@@ -71,13 +71,10 @@ def predict(text: str):
 
     input_ids = torch.tensor(tokens, dtype=torch.long, device=DEVICE).unsqueeze(0)
 
-    mask = (input_ids == PAD_IDX)
+    mask = (input_ids != PAD_IDX)
     # forward
-    out = model(input_ids,mask)
-    lengths = mask.long().sum(dim=1) - 1
-    lengths = lengths.clamp(min=0)
-    logits = out[torch.arange(out.size(0), device=out.device), lengths, :]
-    probs = torch.softmax(logits,dim=1)
+    logits = model(input_ids,mask)[:,0,:]
+    probs = torch.softmax(logits, dim=1)
     # preds = (probs > 0.5).nonzero(as_tuple=False).squeeze(-1)
     # print(probs)
     return {

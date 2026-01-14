@@ -65,6 +65,7 @@ class GPT2Attention(nn.Module):
 
         if self.flash_attn:
             if attn_mask is not None:
+                attn_mask = ~attn_mask
                 attn_mask = attn_mask[:, None, None, :]
 
             y = F.scaled_dot_product_attention(q,k,v,is_causal=self.is_causal,dropout_p=self.dropout,attn_mask=attn_mask)
@@ -72,7 +73,7 @@ class GPT2Attention(nn.Module):
             attn = (q @ k.transpose(-2,-1)) * (1.0 / math.sqrt(k.size(-1)))
             if attn_mask is not None:
                 attn_mask = attn_mask[:,None,None,:]
-                attn = attn.masked_fill(attn_mask,float("-inf"))
+                attn = attn.masked_fill(attn_mask==0,float("-inf"))
             attn = F.softmax(attn, dim=-1)
             y = attn @ v
 

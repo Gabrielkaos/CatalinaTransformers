@@ -23,40 +23,13 @@ class EmotionDataset(Dataset):
         seq = self.sequences[idx]
         label = self.labels[idx]
 
-        mask = (seq == self.pad_idx)
+        mask = (seq != self.pad_idx)
 
         return {
             "input": seq,
             "mask": mask,
             "label": label
         }
-
-
-def compute_metrics(logits, labels, num_classes):
-
-
-
-    if labels.dim() > 1 and labels.size(-1) > 1:
-
-        loss = nn.functional.binary_cross_entropy_with_logits(logits, labels)
-
-
-        predictions = (torch.sigmoid(logits) > 0.5).float()
-        accuracy = (predictions == labels).float().mean()
-
-    else:
-
-        if labels.dim() > 1:
-            labels = labels.squeeze(-1)
-
-        loss = nn.functional.cross_entropy(logits, labels)
-        predictions = logits.argmax(dim=-1)
-        accuracy = (predictions == labels).float().mean()
-
-    return {
-        "loss": loss.item(),
-        "accuracy": accuracy.item()
-    }
 
 
 @torch.no_grad()
@@ -74,10 +47,7 @@ def evaluate(model, loader, criterion, device, is_multilabel=False):
 
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            out = model(x,mask)
-            lengths = mask.long().sum(dim=1) - 1
-            lengths = lengths.clamp(min=0)
-            logits = out[torch.arange(out.size(0), device=out.device), lengths, :]
+            logits = model(x,mask)[:,0,:]
             loss = criterion(logits, y)
 
 
@@ -199,10 +169,7 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
 
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            out = model(x,mask)
-            lengths = mask.long().sum(dim=1) - 1
-            lengths = lengths.clamp(min=0)
-            logits = out[torch.arange(out.size(0), device=out.device), lengths, :]
+            logits = model(x,mask)[:,0,:]
             loss = criterion(logits, y)
             loss = loss / gradient_accumulation_steps
 
