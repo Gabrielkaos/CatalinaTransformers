@@ -32,42 +32,42 @@ class EmotionDataset(Dataset):
         }
 
 
-@torch.no_grad()
-def evaluate(model, loader, criterion, device, is_multilabel=False):
 
-    model.eval()
-    total_loss = 0
-    total_accuracy = 0
-    num_batches = 0
+def freeze_for_dialogue(model, freeze_until_layer=8):
+    """
+    freeze_until_layer:
+      GPT-2 small (12 layers): 8
+      GPT-2 medium (24 layers): 18
+    """
 
-    for batch in tqdm(loader, desc="Evaluating", leave=False):
-        x = batch["input"].to(device)
-        mask = batch["mask"].to(device)
-        y = batch["label"].to(device)
-
-
-        with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            logits = model(x,mask)[:,0,:]
-            loss = criterion(logits, y)
-
-
-        if is_multilabel:
-            predictions = (torch.sigmoid(logits) > 0.5).float()
-            accuracy = (predictions == y).float().mean()
+    for i, layer in enumerate(model.decoder.layers):
+        if i < freeze_until_layer:
+            for name, param in layer.named_parameters():
+                # keep LayerNorms trainable
+                if "norm" in name.lower():
+                    param.requires_grad = True
+                else:
+                    param.requires_grad = False
         else:
-            if y.dim() > 1:
-                y = y.squeeze(-1)
-            predictions = logits.argmax(dim=-1)
-            accuracy = (predictions == y).float().mean()
+            # top layers fully trainable
+            for param in layer.parameters():
+                param.requires_grad = True
 
-        total_loss += loss.item()
-        total_accuracy += accuracy.item()
-        num_batches += 1
+    # Freeze embeddings
+    for param in model.embed.parameters():
+        param.requires_grad = False
+    for param in model.pos.parameters():
+        param.requires_grad = False
 
-    return {
-        "loss": total_loss / num_batches,
-        "accuracy": total_accuracy / num_batches
-    }
+    # Final LayerNorm stays trainable
+    for param in model.decoder.norm.parameters():
+        param.requires_grad = True
+
+    # Print stats
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in model.parameters())
+    print(f"Trainable params: {trainable:_}/{total:_} ({100*trainable/total:.2f}%)")
+
 
 
 
@@ -114,41 +114,42 @@ def load_checkpoint(filepath, model, optimizer=None, scheduler=None, scaler=None
     return checkpoint.get("epoch", 0), checkpoint.get("metrics", {})
 
 
-def freeze_for_dialogue(model, freeze_until_layer=8):
-    """
-    freeze_until_layer:
-      GPT-2 small (12 layers): 8
-      GPT-2 medium (24 layers): 18
-    """
+@torch.no_grad()
+def evaluate(model, loader, criterion, device, is_multilabel=False):
 
-    for i, layer in enumerate(model.decoder.layers):
-        if i < freeze_until_layer:
-            for name, param in layer.named_parameters():
-                # keep LayerNorms trainable
-                if "norm" in name.lower():
-                    param.requires_grad = True
-                else:
-                    param.requires_grad = False
+    model.eval()
+    total_loss = 0
+    total_accuracy = 0
+    num_batches = 0
+
+    for batch in tqdm(loader, desc="Evaluating", leave=False):
+        x = batch["input"].to(device)
+        mask = batch["mask"].to(device)
+        y = batch["label"].to(device)
+
+
+        with autocast(device_type=device.type, enabled=(device.type == "cuda")):
+            logits = model(x,mask)[:,0,:]
+            loss = criterion(logits, y)
+
+
+        if is_multilabel:
+            predictions = (torch.sigmoid(logits) > 0.5).float()
+            accuracy = (predictions == y).float().mean()
         else:
-            # top layers fully trainable
-            for param in layer.parameters():
-                param.requires_grad = True
+            if y.dim() > 1:
+                y = y.squeeze(-1)
+            predictions = logits.argmax(dim=-1)
+            accuracy = (predictions == y).float().mean()
 
-    # Freeze embeddings
-    for param in model.embed.parameters():
-        param.requires_grad = False
-    for param in model.pos.parameters():
-        param.requires_grad = False
+        total_loss += loss.item()
+        total_accuracy += accuracy.item()
+        num_batches += 1
 
-    # Final LayerNorm stays trainable
-    for param in model.decoder.norm.parameters():
-        param.requires_grad = True
-
-    # Print stats
-    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    total = sum(p.numel() for p in model.parameters())
-    print(f"Trainable params: {trainable:_}/{total:_} ({100*trainable/total:.2f}%)")
-
+    return {
+        "loss": total_loss / num_batches,
+        "accuracy": total_accuracy / num_batches
+    }
 
 
 def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
@@ -166,7 +167,6 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
         x = batch["input"].to(device, non_blocking=True)
         mask = batch["mask"].to(device, non_blocking=True)
         y = batch["label"].to(device, non_blocking=True)
-
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
             logits = model(x,mask)[:,0,:]
@@ -451,11 +451,12 @@ def train():
                 best_val_acc = val_metrics['accuracy']
                 best_path = "best_model.pth"
                 print("Saving best model")
-                save_checkpoint(
-                    model, optimizer, scheduler, scaler, epoch + 1,
-                    {"train": train_metrics, "val": val_metrics, "best_val_acc": best_val_acc},
-                    best_path
-                )
+                # save_checkpoint(
+                #     model, optimizer, scheduler, scaler, epoch + 1,
+                #     {"train": train_metrics, "val": val_metrics, "best_val_acc": best_val_acc},
+                #     best_path
+                # )
+                torch.save({"model_state":model.state_dict()},best_path)
                 print(f"✓ Saved best model (val_acc: {best_val_acc:.4f})")
 
 
