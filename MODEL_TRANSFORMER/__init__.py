@@ -505,7 +505,6 @@ class Transformer(nn.Module):
     def project(self, x):
         return self.proj(x)
 
-
 class TransformerEncoderOnly(nn.Module):
     def __init__(self, encoder: Encoder,
                  src_embed: InputEmbedding,
@@ -533,8 +532,6 @@ class TransformerEncoderOnly(nn.Module):
 
     # def project(self, x):
     #     return self.proj(x)
-    
-
 
 class TransformerDecoderOnly(nn.Module):
     def __init__(self, decoder, embed, projection):
@@ -573,6 +570,7 @@ class GPTTransformer(nn.Module):
         x = self.decoder(x)
         return F.linear(x,self.embed.weight,bias=None)
 
+
 def gpt2_like_model(
     vocab_size,
     block_size=1024,
@@ -602,7 +600,6 @@ def gpt2_like_model(
     #         nn.init.xavier_uniform_(p)
 
     return model
-
 
 
 #decoder only transformer (used for next token prediction)

@@ -25,7 +25,8 @@ def process_dailydialog(
     tokenizer = tiktoken.get_encoding("gpt2")
     dataset = load_dataset("roskoN/dailydialog", split=split)
 
-    sequences = []
+    input_seqs = []
+    label_seqs = []
     skipped = 0
 
     for item in tqdm(dataset):
@@ -40,26 +41,41 @@ def process_dailydialog(
             if len(tokens) >= max_seq_len:
                 skipped += 1
                 continue
+            
+            pad_len = (max_seq_len - len(tokens))
+            inputs = tokens[:-1] + [50256]
+            inputs += [50256] * pad_len
 
-            tokens += [50256] * (max_seq_len - len(tokens))
-            sequences.append(tokens)
+            labels = tokens[1:] + [50256]
+            labels += [-100] * pad_len
 
-    print(f"Total samples: {len(sequences)} | Skipped: {skipped}")
-    return torch.tensor(sequences, dtype=torch.int64)
+            assert len(inputs)==len(labels),"Length differ"
+
+
+            input_seqs.append(inputs)
+            label_seqs.append(labels)
+
+    print(f"Total samples: {len(input_seqs)} | Skipped: {skipped}")
+    return torch.tensor(input_seqs, dtype=torch.int64),torch.tensor(label_seqs, dtype=torch.int64)
 
 
 if __name__ == "__main__":
     
-    x = process_dailydialog(
+    x,y = process_dailydialog(
         max_seq_len=256, 
         split="train"
     )
     
     file_name = "data.pth"
     torch.save({
-        "x": x
+        "x": x,
+        "y":y
     }, file_name)
 
     print(x.shape)
+    print(y.shape)
+
+    print(x[0])
+    print(y[0])
     
     print("Done")

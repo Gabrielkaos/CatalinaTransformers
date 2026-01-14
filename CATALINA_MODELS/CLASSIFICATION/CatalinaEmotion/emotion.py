@@ -1,67 +1,98 @@
-import warnings
 import torch
-from data_cleaning import tokens_to_tensor, tokenize_with_tiktoken
-from old_transformer import build_transformer_encoder
-from unidecode import unidecode
+import torch.nn.functional as F
+import tiktoken
+from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
+from pathlib import Path
+
+# -------------------------
+# Configuration
+# -------------------------
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+MAX_LEN = 1024
+PAD_IDX = 50256
+
+# -------------------------
+# Load metadata
+# -------------------------
+data = torch.load("data.pth", map_location="cpu")
+num_classes = data["num_classes"]
+label_map = data["label_map"]  # {idx: label}
+
+# -------------------------
+# Tokenizer
+# -------------------------
+tokenizer = tiktoken.get_encoding("gpt2")
+
+# -------------------------
+# Build model (same as training)
+# -------------------------
+config = {
+    "vocab_size": 50257,
+    "num_class": 28,
+    "d_model" : 768,
+    "n_layers" : 12,
+    "n_heads" : 12,
+    "is_causal" : True,
+    "block_size" : 1024,
+    "dropout" : 0.1,
+    "mlp_activation" : "gelu"
+}
+model = gpt_classifier(
+    **config
+)
+
+# Load weights
+ckpt = torch.load("best_model.pth", map_location=DEVICE)
+state_dict = ckpt["model_state"]
+new_state_dict = {}
+for k, v in state_dict.items():
+    if k.startswith("_orig_mod."):
+        new_k = k[len("_orig_mod."):]
+    else:
+        new_k = k
+    new_state_dict[new_k] = v
+
+model.load_state_dict(new_state_dict) 
+model.to(DEVICE)
+model.eval()
+
+# -------------------------
+# Inference loop
+# -------------------------
+@torch.no_grad()
+def predict(text: str):
+    # tokenize
+    tokens = tokenizer.encode(text)
+    tokens = tokens[:MAX_LEN]
+
+    # pad
+    pad_len = MAX_LEN - len(tokens)
+    tokens = tokens + [PAD_IDX] * pad_len
+
+    input_ids = torch.tensor(tokens, dtype=torch.long, device=DEVICE).unsqueeze(0)
+
+    mask = (input_ids == PAD_IDX)
+    # forward
+    logits = model(input_ids,mask)[:,0,:]
+    probs = torch.sigmoid(logits)
+    preds = (probs > 0.5).nonzero(as_tuple=False).squeeze(-1)
+    print(preds)
+    return {
+        label_map[i]: preds[i].item() * 100
+        for i in range(num_classes)
+    }
 
 
-def count_parameters(model1):
-    return sum(p.numel() for p in model1.parameters() if p.requires_grad)
-
-
-def main():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device={device}")
-
-    max_seq_src = 100
-
-    # data
-    data = torch.load("data_simplified.pth")
-    src_vocab = data["src_vocab"]
-    tokenizer_src = data["tokenizer_src"]
-    num_labels = data["num_labels"]
-    label_map = data["label_map"]
-
-    # Model
-    model = build_transformer_encoder(len(src_vocab), num_labels, max_seq_src, device=device, dropout=0.05, 
-                                      n_layers=15, 
-                                      n_heads=15, 
-                                      d_model=900,
-                                      dff=2600,).to(device)
-    model.load_state_dict(torch.load("brain.pth", map_location=device)["model_state"])
-    model.eval()
-    print(count_parameters(model))
-
-    with torch.no_grad():
-        while True:
-            input_text = input("\n:")
-            _,line = tokenize_with_tiktoken(unidecode(input_text.strip()))
-            line = line[:max_seq_src]
-            line += ["<PAD>"] * (max_seq_src - len(line))
-            # print(line)
-
-            x = tokens_to_tensor([line], tokenizer_src, max_seq_src)[0].to(device)
-            # print(x)
-
-            pad_token = torch.tensor([tokenizer_src["<PAD>"]], dtype=torch.int32).to(device)
-
-            source_mask = (x != pad_token).unsqueeze(0).unsqueeze(0).int().to(device)
-
-            encoder_output = model.encode(x, source_mask).to(device)
-
-            proj_output = model.project(encoder_output)[:,0,:]
-
-            probs = torch.softmax(proj_output.to('cpu'), dim=1)[0] * 100
-            
-            emotion_probs = {label_map[idx]: value.item() for idx, value in enumerate(probs)}
-            emotion_probs_sorted = sorted(emotion_probs.items(), key=lambda x: x[1], reverse=True)
-            # print(*emotion_probs_sorted, sep="\n")
-            
-            print()
-            for emotion in emotion_probs_sorted:
-                print(emotion[0], ":", f"{emotion[1]:.2f}%")
-
-
+# -------------------------
+# Interactive CLI
+# -------------------------
 if __name__ == "__main__":
-    warnings.filterwarnings("ignore")
-    main()
+    print(f"Device: {DEVICE}")
+    while True:
+        text = input("\n> ").strip()
+        if not text:
+            continue
+
+        probs = predict(text)
+        for k, v in sorted(probs.items(), key=lambda x: x[1], reverse=True):
+            print(f"{k}: {v:6.2f}%")

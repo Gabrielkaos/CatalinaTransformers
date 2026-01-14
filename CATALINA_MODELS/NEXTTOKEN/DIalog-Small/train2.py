@@ -45,17 +45,19 @@ def freeze_for_dialogue(model, freeze_until_layer=8):
 
 
 class LanguageModelDataset(Dataset):
-    def __init__(self, sequences):
-        self.sequences = sequences
+    def __init__(self, inputs,labels):
+        self.inputs = inputs
+        self.labels = labels
 
     def __len__(self):
-        return len(self.sequences)
+        return len(self.inputs)
 
     def __getitem__(self, idx):
-        seq = self.sequences[idx]
+        x = self.inputs[idx]
+        y = self.labels[idx]
         return {
-            "input": seq[:-1],
-            "label": seq[1:]
+            "input": x,
+            "label": y
         }
 
 def get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps, min_lr=0):
@@ -257,16 +259,17 @@ def train():
     # ========== Load Data ==========
     print("Loading data...")
     data = torch.load("data.pth")
-    sequences = data["x"]
+    inputs = data["x"]
+    labels = data["y"]
     vocab = 50257
     # tokenizer = tiktoken.get_encoding("gpt2")
     
     config["vocab_size"] = vocab
     print(f"Vocab size: {vocab}")
-    print(f"Total sequences: {len(sequences)}")
+    print(f"Total sequences: {len(inputs)}")
     
    
-    dataset = LanguageModelDataset(sequences)
+    dataset = LanguageModelDataset(inputs,labels)
     
     
     val_size = int(len(dataset) * val_split)
@@ -307,11 +310,12 @@ def train():
     #freeze some layers
     freeze_for_dialogue(model,freeze_until_layer=8)
 
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Total parameters: {total_params:,}")
-    print(f"Trainable parameters: {trainable_params:,}")
+    # total_params = sum(p.numel() for p in model.parameters())
+    # trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # print(f"Total parameters: {total_params:,}")
+    # print(f"Trainable parameters: {trainable_params:,}")
     
+    print("Compiling...")
     if hasattr(torch, 'compile'):
         print("Compiling model with torch.compile...")
         model = torch.compile(model)
@@ -325,7 +329,7 @@ def train():
     )
     
     #lets ignore the pad idx or eos_token
-    criterion = nn.CrossEntropyLoss(ignore_index=50256)
+    criterion = nn.CrossEntropyLoss()
     scaler = GradScaler(enabled=(device.type == "cuda"))
     
    

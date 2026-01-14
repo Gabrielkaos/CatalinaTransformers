@@ -123,7 +123,7 @@ def generate(
 
         
     
-    x = x[0][len(token_ids):].tolist()
+    x = x[0].tolist()
 
     return tokenizer.decode(x)
 
@@ -151,22 +151,22 @@ if __name__ == "__main__":
     
     print(f"Data vocab:{vocab}")
     try:
-        data_model=torch.load("gpt2.pth",map_location="cpu")
-        model.load_state_dict(data_model["model_state"])
+        # data_model=torch.load("gpt2.pth",map_location="cpu")
+        # model.load_state_dict(data_model["model_state"])
         
-        # checkpoint = torch.load("brain.pth", map_location=device)
-        # state_dict = checkpoint["model_state"]
+        checkpoint = torch.load("best_model.pth", map_location=device)
+        state_dict = checkpoint["model_state"]
 
         
-        # new_state_dict = {}
-        # for k, v in state_dict.items():
-        #     if k.startswith("_orig_mod."):
-        #         new_k = k[len("_orig_mod."):]
-        #     else:
-        #         new_k = k
-        #     new_state_dict[new_k] = v
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith("_orig_mod."):
+                new_k = k[len("_orig_mod."):]
+            else:
+                new_k = k
+            new_state_dict[new_k] = v
 
-        # model.load_state_dict(new_state_dict) 
+        model.load_state_dict(new_state_dict) 
 
         #load gpt2
         # model_hf = GPT2LMHeadModel.from_pretrained("gpt2")
@@ -240,10 +240,11 @@ if __name__ == "__main__":
     #                 f"Response:\n"
     #             )
 
+    prompt = "Person1: Are you okay ?\nPerson2:"
 
     print("\n=== Generating ===")
     output = generate(
-        model, tokenizer, "Hello I am  language model, ", 
+        model, tokenizer, prompt, 
         max_len=30,
         device=device,
     )
