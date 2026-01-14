@@ -5,7 +5,7 @@ from torch.amp import autocast, GradScaler
 import time
 from pathlib import Path
 from tqdm import tqdm
-# from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
+from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
 import math
 from transformers import GPT2LMHeadModel
 
@@ -305,8 +305,6 @@ def train():
     labels = data["label"]
 
     vocab = 50257
-    tokenizer = tiktoken.get_encoding("gpt2")
-
     num_classes = data["num_classes"]
     pad_idx = 50256
 
