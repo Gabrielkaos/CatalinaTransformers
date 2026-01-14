@@ -73,12 +73,15 @@ def predict(text: str):
 
     mask = (input_ids == PAD_IDX)
     # forward
-    logits = model(input_ids,mask)[:,0,:]
-    probs = torch.sigmoid(logits)
-    preds = (probs > 0.5).nonzero(as_tuple=False).squeeze(-1)
-    print(preds)
+    out = model(input_ids,mask)
+    lengths = mask.long().sum(dim=1) - 1
+    lengths = lengths.clamp(min=0)
+    logits = out[torch.arange(out.size(0), device=out.device), lengths, :]
+    probs = torch.softmax(logits,dim=1)
+    # preds = (probs > 0.5).nonzero(as_tuple=False).squeeze(-1)
+    # print(probs)
     return {
-        label_map[i]: preds[i].item() * 100
+        label_map[i]: probs[0][i].item() * 100
         for i in range(num_classes)
     }
 

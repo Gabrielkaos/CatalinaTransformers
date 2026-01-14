@@ -273,7 +273,7 @@ def train():
         "d_model" : 768,
         "n_layers" : 12,
         "n_heads" : 12,
-        "is_causal" : True,
+        "is_causal" : False,
         "block_size" : 1024,
         "dropout" : 0.1,
         "mlp_activation" : "gelu"

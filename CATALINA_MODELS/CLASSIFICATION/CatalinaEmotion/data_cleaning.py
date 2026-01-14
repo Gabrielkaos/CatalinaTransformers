@@ -5,7 +5,7 @@ import tiktoken
 
 def get_data_simplified(max_seq_src):
     print("\nFetching Dataset...")
-    dataset = load_dataset("go_emotions", "simplified", split='train')
+    dataset = load_dataset("google-research-datasets/go_emotions", "simplified", split='train')
 
     tokenizer = tiktoken.get_encoding("gpt2")
 
@@ -19,8 +19,6 @@ def get_data_simplified(max_seq_src):
                  19: "nervousness", 20: "optimism", 21: "pride", 22: "realization", 23: "relief", 24: "remorse",
                  25: "sadness", 26: "surprise", 27: "neutral"}
     
-    map_label = {value: key for key, value in label_map.items()}
-
     num_labels = len(label_map)
 
     print("Processing dataset...")
@@ -35,6 +33,9 @@ def get_data_simplified(max_seq_src):
         labels1 = data["labels"]
         for i in labels1:
             label_vector[i] = 1
+
+        if sum(label_vector)==0:
+            continue
         
         pad_length = max_seq_src - len(token_ids)
         token_ids = token_ids + [50256] * pad_length
@@ -71,12 +72,8 @@ if __name__ == "__main__":
     # torch.save(inputs_dict, "data.pth")
 
     data = torch.load("data.pth",map_location=torch.device("cpu"))
+    tokenizer = tiktoken.get_encoding("gpt2")
 
     x = data["x"]
     y = data["label"]
-
-    print(len(x))
-    print(x[0].shape)
-    print(y[0].shape)
-
-    print(x[0] != 50256)
+    label_map = data["label_map"]

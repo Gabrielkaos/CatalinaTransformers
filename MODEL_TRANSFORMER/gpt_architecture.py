@@ -65,7 +65,6 @@ class GPT2Attention(nn.Module):
 
         if self.flash_attn:
             if attn_mask is not None:
-                attn_mask = ~attn_mask
                 attn_mask = attn_mask[:, None, None, :]
 
             y = F.scaled_dot_product_attention(q,k,v,is_causal=self.is_causal,dropout_p=self.dropout,attn_mask=attn_mask)
