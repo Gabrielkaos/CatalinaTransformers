@@ -28,7 +28,7 @@ tokenizer = tiktoken.get_encoding("gpt2")
 # -------------------------
 config = {
     "vocab_size": 50257,
-    "num_class": None,
+    "num_class": 28,
     "d_model" : 768,
     "n_layers" : 12,
     "n_heads" : 12,
