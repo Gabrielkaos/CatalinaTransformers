@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset
 from torch.amp import autocast, GradScaler
 import time
 from pathlib import Path
 from tqdm import tqdm
-# from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
+from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
 import math
 from transformers import GPT2LMHeadModel
 
