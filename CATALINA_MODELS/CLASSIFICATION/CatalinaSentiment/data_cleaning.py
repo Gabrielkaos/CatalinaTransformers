@@ -55,7 +55,7 @@ def get_data_simplified(max_seq_src,split="train"):
 if __name__ == "__main__":
     max_seq_src = 128
 
-    x, label, label_map, num_labels = get_data_simplified(max_seq_src,split="test")
+    x, label, label_map, num_labels = get_data_simplified(max_seq_src,split="train")
 
     inputs_dict = {
         "x": x,
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         "num_classes":num_labels
     }
 
-    torch.save(inputs_dict, "data_test.pth")
+    torch.save(inputs_dict, "data.pth")
 
     # data = torch.load("data.pth",map_location=torch.device("cpu"))
     # tokenizer = tiktoken.get_encoding("gpt2")

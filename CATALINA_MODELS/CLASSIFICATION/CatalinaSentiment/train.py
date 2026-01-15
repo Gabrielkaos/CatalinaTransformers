@@ -8,6 +8,7 @@ from tqdm import tqdm
 from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
 import math
 from transformers import GPT2LMHeadModel
+from sklearn.utils.class_weight import compute_class_weight
 
 
 class CustomDataset(Dataset):
@@ -366,7 +367,15 @@ def train():
         criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight.to(device))
         print("Using BCEWithLogitsLoss for multi-label classification")
     else:
-        criterion = nn.CrossEntropyLoss()
+
+        classes = torch.unique(torch.tensor(labels))
+        class_weights = compute_class_weight(
+            class_weight='balanced',
+            classes=classes.numpy(),
+            y=torch.tensor(labels).numpy()
+        )
+        class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
         print("Using CrossEntropyLoss for multi-class classification")
 
     scaler = GradScaler(enabled=(device.type == "cuda"))
