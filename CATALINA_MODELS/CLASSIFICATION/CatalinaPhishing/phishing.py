@@ -1,0 +1,104 @@
+import torch
+import torch.nn.functional as F
+import tiktoken
+from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
+from pathlib import Path
+
+# -------------------------
+# Configuration
+# -------------------------
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+MAX_LEN = 1024
+PAD_IDX = 50256
+
+# -------------------------
+# Load metadata
+# -------------------------
+data = torch.load("data.pth", map_location="cpu")
+num_classes = data["num_classes"]
+label_map = data["label_map"]  # {idx: label}
+
+# -------------------------
+# Tokenizer
+# -------------------------
+tokenizer = tiktoken.get_encoding("gpt2")
+
+# -------------------------
+# Build model (same as training)
+# -------------------------
+config = {
+    "vocab_size": 50257,
+    "num_class": 28,
+    "d_model" : 768,
+    "n_layers" : 12,
+    "n_heads" : 12,
+    "is_causal" : False,
+    "block_size" : 1024,
+    "dropout" : 0.1,
+    "mlp_activation" : "gelu"
+}
+model = gpt_classifier(
+    **config
+)
+
+# Load weights
+ckpt = torch.load("best_model.pth", map_location=DEVICE)
+state_dict = ckpt["model_state"]
+new_state_dict = {}
+for k, v in state_dict.items():
+    if k.startswith("_orig_mod."):
+        new_k = k[len("_orig_mod."):]
+    else:
+        new_k = k
+    new_state_dict[new_k] = v
+
+model.load_state_dict(new_state_dict) 
+model.to(DEVICE)
+model.eval()
+
+# -------------------------
+# Inference loop
+# -------------------------
+@torch.no_grad()
+def predict(text: str):
+    # tokenize
+    tokens = tokenizer.encode(text)
+    tokens = tokens[:MAX_LEN]
+
+    input_ids = torch.tensor(tokens, dtype=torch.long, device=DEVICE).unsqueeze(0)
+
+    mask = (input_ids != PAD_IDX)
+    # forward
+    hidden = model(input_ids,mask=mask,return_hidden=True)   # [B, T, D]
+    mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
+    pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
+    logits = model.last_projection(pooled)
+    probs = torch.sigmoid(logits)[0]
+    # mask = probs >= 0.5
+
+    # # selected_probs = probs[mask]
+    # selected_indices = mask.nonzero(as_tuple=True)[0]
+
+    return {
+        label_map[i]: probs[i].item()
+        for i in range(num_classes)
+    }
+
+
+
+# -------------------------
+# Interactive CLI
+# -------------------------
+if __name__ == "__main__":
+    print(f"Device: {DEVICE}")
+    while True:
+        text = input("\n> ").strip()
+        if not text:
+            continue
+
+        probs = predict(text)
+        max_probs = max(probs.values())
+        for k, v in sorted(probs.items(), key=lambda x: x[1], reverse=True):
+            
+            if v >= max_probs-0.1:
+                print(f"{k}: {v:6.2f}%")

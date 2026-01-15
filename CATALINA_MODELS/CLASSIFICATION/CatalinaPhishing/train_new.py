@@ -5,10 +5,9 @@ from torch.amp import autocast, GradScaler
 import time
 from pathlib import Path
 from tqdm import tqdm
-from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
+from MODEL_TRANSFORMER import build_transformer_encoder
 import math
-from transformers import GPT2LMHeadModel
-from sklearn.utils.class_weight import compute_class_weight
+from vocab1 import itos
 
 
 class CustomDataset(Dataset):
@@ -91,10 +90,8 @@ def evaluate(model, loader, criterion, device, is_multilabel=False):
 
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            hidden = model(x,mask=mask,return_hidden=True)   # [B, T, D]
-            mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
-            pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
-            logits = model.last_projection(pooled)
+            hidden = model(x,mask=mask)
+            logits = hidden[:,0,:]
             loss = criterion(logits, y)
 
 
@@ -134,11 +131,8 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
         y = batch["label"].to(device, non_blocking=True)
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            hidden = model(x,mask=mask,return_hidden=True)   # [B, T, D]
-            mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
-            pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
-            logits = model.last_projection(pooled)
-            # print(logits.shape)
+            hidden = model(x,mask=mask)
+            logits = hidden[:,0,:]
             loss = criterion(logits, y)
             loss = loss / gradient_accumulation_steps
 
@@ -203,21 +197,17 @@ def train():
 
 
     config = {
-        "vocab_size": 50257,
-        "num_class": None,
-        "d_model" : 768,
-        "n_layers" : 12,
-        "n_heads" : 12,
-        "is_causal" : False,
-        "block_size" : 1024,
-        "dropout" : 0.2,
-        "mlp_activation" : "gelu"
+        "vocab_size": len(itos),
+        "num_classes": 2,
+        "d_model" : 256,
+        "n_layers" : 4,
+        "n_heads" : 4
     }
 
 
     batch_size = 64
     gradient_accumulation_steps = 10
-    lr = 1e-5
+    lr = 3e-5
     weight_decay = 0.001
     epochs = 8
     max_grad_norm = 1.0
@@ -240,14 +230,8 @@ def train():
     test_sequences = test_data["x"]
     test_labels = test_data["label"]
 
-    vocab = 50257
-    num_classes = data["num_classes"]
-    pad_idx = 50256
+    pad_idx = 0
 
-    config["num_class"] = num_classes
-
-    print(f"Vocab size: {vocab}")
-    print(f"Num classes: {num_classes}")
     print(f"Total sequences: {len(sequences)}")
 
 
@@ -257,15 +241,6 @@ def train():
 
     train_dataset = CustomDataset(sequences, labels, pad_idx)
     val_dataset = CustomDataset(test_sequences,test_labels,pad_idx)
-
-
-    # val_size = int(len(dataset) * val_split)
-    # train_size = len(dataset) - val_size
-    # train_dataset, val_dataset = random_split(
-    #     dataset,
-    #     [train_size, val_size],
-    #     generator=torch.Generator().manual_seed(42)
-    # )
 
     print(f"Train size: {len(train_dataset)}, Val size: {len(val_dataset)}")
 
@@ -290,48 +265,9 @@ def train():
 
     # ========== Build Model ==========
     print("\nBuilding model...")
-    model = gpt_classifier(
+    model = build_transformer_encoder(
         **config
     )
-
-    #load gpt2
-    model_hf = GPT2LMHeadModel.from_pretrained("gpt2")
-    sd_hf = model_hf.state_dict()
-
-    print("Copying gpt2's weights")
-    print("Copying embedding...")
-    #copy gpt2's embedding
-    model.embed.weight.data.copy_(sd_hf["transformer.wte.weight"])
-    model.pos.weight.data.copy_(sd_hf["transformer.wpe.weight"])
-
-    #copy gpt2 attention projection
-    print("Copying attention...")
-    for i in range(config["n_layers"]):
-        layer = model.decoder.layers[i]
-        #proj
-        layer.self_attention.w_o.weight.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.weight"].t())
-        layer.self_attention.w_o.bias.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_proj.bias"])
-
-        #attn
-        layer.self_attention.c_attn.weight.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.weight"].t())
-        layer.self_attention.c_attn.bias.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
-
-        #mlp
-        layer.feed_forward.linear1.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
-        layer.feed_forward.linear2.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
-        layer.feed_forward.linear1.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.bias"])
-        layer.feed_forward.linear2.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.bias"])
-
-
-        #copy layer norms
-        layer.norm1.weight.data.copy_(sd_hf[f"transformer.h.{i}.ln_1.weight"])
-        layer.norm1.bias.data.copy_(sd_hf[f"transformer.h.{i}.ln_1.bias"])
-        layer.norm2.weight.data.copy_(sd_hf[f"transformer.h.{i}.ln_2.weight"])
-        layer.norm2.bias.data.copy_(sd_hf[f"transformer.h.{i}.ln_2.bias"])
-
-    #last norm copy
-    model.decoder.norm.weight.data.copy_(sd_hf["transformer.ln_f.weight"])
-    model.decoder.norm.bias.data.copy_(sd_hf["transformer.ln_f.bias"])
 
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total = sum(p.numel() for p in model.parameters())
@@ -357,15 +293,7 @@ def train():
         criterion = nn.BCEWithLogitsLoss()
         print("Using BCEWithLogitsLoss for multi-label classification")
     else:
-
-        classes = torch.unique(torch.tensor(labels))
-        class_weights = compute_class_weight(
-            class_weight='balanced',
-            classes=classes.numpy(),
-            y=torch.tensor(labels).numpy()
-        )
-        class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
-        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        criterion = nn.CrossEntropyLoss()
         print("Using CrossEntropyLoss for multi-class classification")
 
     scaler = GradScaler(enabled=(device.type == "cuda"))
@@ -428,11 +356,6 @@ def train():
                 best_val_acc = val_metrics['accuracy']
                 best_path = "best_model.pth"
                 print("Saving best model")
-                # save_checkpoint(
-                #     model, optimizer, scheduler, scaler, epoch + 1,
-                #     {"train": train_metrics, "val": val_metrics, "best_val_acc": best_val_acc},
-                #     best_path
-                # )
                 torch.save({"model_state":model.state_dict()},best_path)
                 print(f"✓ Saved best model (val_acc: {best_val_acc:.4f})")
 
