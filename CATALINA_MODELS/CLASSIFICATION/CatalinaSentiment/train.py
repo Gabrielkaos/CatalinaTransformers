@@ -402,9 +402,9 @@ def train():
         p.requires_grad = False
 
 
-    if hasattr(torch, 'compile'):
-        print("Compiling model with torch.compile...")
-        model = torch.compile(model)
+    # if hasattr(torch, 'compile'):
+    #     print("Compiling model with torch.compile...")
+    #     model = torch.compile(model)
 
     # ========== Setup Training ==========
     optimizer = torch.optim.AdamW(
