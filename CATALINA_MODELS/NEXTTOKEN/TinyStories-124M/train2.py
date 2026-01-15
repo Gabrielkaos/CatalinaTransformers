@@ -338,8 +338,8 @@ def train():
     total_steps = len(train_loader) * epochs // gradient_accumulation_steps
     scheduler = get_cosine_schedule_with_warmup(
         optimizer,
-        num_warmup_steps=warmup_steps,
-        num_training_steps=int(0.1*total_steps)
+        num_warmup_steps=int(0.1*warmup_steps),
+        num_training_steps=total_steps
     )
     
     start_epoch = 0

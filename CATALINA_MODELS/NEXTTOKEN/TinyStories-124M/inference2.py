@@ -90,67 +90,39 @@ def generate_story(
     device: str = "cpu",
     verbose: bool = False
 ):
-    """
-    Enhanced story generation with better sampling controls.
-    
-    Args:
-        model: The trained transformer model
-        tokenizer: Tokenizer for encoding/decoding
-        prompt: Starting prompt for the story
-        max_tokens: Maximum tokens to generate
-        temperature: Sampling temperature (higher = more random)
-        top_k: Only sample from top k tokens
-        top_p: Nucleus sampling (cumulative probability threshold)
-        stop_sequences: List of strings that stop generation
-        device: Device to run on
-        verbose: Print generation steps
-    
-    Returns:
-        Generated story text
-    """
     model.eval()
     
-    # Default stop sequences for stories
     if stop_sequences is None:
-        stop_sequences = ["\n\n", "<|endoftext|>", "The End", "THE END"]
+        stop_sequences = ["<|endoftext|>","END","\n","THE END"]
     
-    # Encode prompt
     token_ids = tokenizer.encode(prompt)
     input_tensor = torch.tensor([token_ids], dtype=torch.long, device=device)
     
     generated_tokens = []
     stop_reached = False
     
-    # Track recent tokens for repetition penalty
-    recent_tokens = []
-    max_recent = 20  # Look back window for repetition penalty
     
     if verbose:
         print(f"Starting generation with prompt: '{prompt}'")
         print(f"Temperature: {temperature}, Top-k: {top_k}, Top-p: {top_p}")
     
     for step in range(max_tokens):
-        # Get model predictions
         logits = model(input_tensor)
-        logits = logits[:, -1, :]  # Last token's logits
+        logits = logits[:, -1, :]  
         
-        # Apply temperature
         if temperature != 1.0:
             logits = logits / temperature
         
-        # Apply top-k filtering
         if top_k > 0:
             indices_to_remove = logits < torch.topk(logits, top_k)[0][..., -1, None]
             logits[indices_to_remove] = -float('Inf')
         
-        # Apply top-p (nucleus) sampling
         if top_p < 1.0:
             sorted_logits, sorted_indices = torch.sort(logits, descending=True)
             cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
             
-            # Remove tokens with cumulative probability above threshold
+           
             sorted_indices_to_remove = cumulative_probs > top_p
-            # Shift the indices to the right to keep first token above threshold
             sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
             sorted_indices_to_remove[..., 0] = 0
             
@@ -159,26 +131,19 @@ def generate_story(
             )
             logits[indices_to_remove] = -float('Inf')
         
-        # Sample from the filtered distribution
+       
         probs = F.softmax(logits, dim=-1)
         next_token = torch.multinomial(probs, num_samples=1)
         
-        # Decode and check for stop sequences
+        
         next_token_id = next_token.item()
         generated_tokens.append(next_token_id)
         
-        # Update recent tokens for repetition penalty
-        recent_tokens.append(next_token_id)
-        if len(recent_tokens) > max_recent:
-            recent_tokens.pop(0)
         
-        # Append token to input for next iteration
         input_tensor = torch.cat([input_tensor, next_token], dim=1)
         
-        # Decode full sequence so far to check for stop sequences
         current_text = tokenizer.decode(token_ids + generated_tokens)
         
-        # Check for stop sequences
         for stop_seq in stop_sequences:
             if stop_seq in current_text[len(prompt):]:
                 if verbose:
@@ -189,62 +154,29 @@ def generate_story(
         if stop_reached:
             break
         
-        # Print progress if verbose
         if verbose and step % 10 == 0:
             new_text = tokenizer.decode([next_token_id])
             print(f"Step {step}: '{new_text}'", end="", flush=True)
     
-    # Combine prompt and generated tokens
     full_tokens = token_ids + generated_tokens
     full_text = tokenizer.decode(full_tokens)
-    
-    # Clean up the output (optional)
-    # full_text = clean_story_text(full_text, prompt)
-    
-    return full_text
 
-
-def clean_story_text(text: str, original_prompt: str) -> str:
-    """
-    Clean up generated story text.
-    """
-    # Remove any trailing incomplete sentences
-    sentences = text.split('. ')
-    if len(sentences) > 1 and not sentences[-1].endswith('.'):
-        text = '. '.join(sentences[:-1]) + '.'
-    
-    # Ensure the prompt is included exactly as given
-    if text.startswith(original_prompt):
-        return text
-    
-    # Sometimes tokenizer adds spaces - handle this
-    prompt_clean = original_prompt.strip()
-    text_clean = text.strip()
-    
-    if text_clean.startswith(prompt_clean):
-        return text
-    
-    # If not, prepend the prompt
-    return original_prompt + text
+    return full_text,stop_reached
 
 
 
-
-# Example usage function
 def interactive_story_generation(model, tokenizer, device="cpu"):
-    """
-    Interactive mode for story generation.
-    """
+    
     print("\nStory Generator")
     print("Type 'quit' to exit")
     print("Type 'settings' to change generation parameters")
     
     # Default parameters
     params = {
-        'max_tokens': 20,
-        'temperature': 0.7,
-        'top_k': 40,
-        'top_p': 0.85
+        'max_tokens': 256,
+        'temperature': 0.8,
+        'top_k': 50,
+        'top_p': 0.9
     }
     
     while True:
@@ -271,7 +203,7 @@ def interactive_story_generation(model, tokenizer, device="cpu"):
         
         print("\nGenerating story...")
         
-        story = generate_story(
+        story,ended = generate_story(
             model=model,
             tokenizer=tokenizer,
             prompt=prompt,
@@ -280,7 +212,7 @@ def interactive_story_generation(model, tokenizer, device="cpu"):
         )
         
         print("\n" + "="*60)
-        print("📖 Generated Story:")
+        print("Generated Story:")
         print("="*60)
         print(story)
         print("="*60)
@@ -291,18 +223,18 @@ def interactive_story_generation(model, tokenizer, device="cpu"):
             if continue_story != "yes":break
 
             print("\nContinuing the story...")
-            continuation = generate_story(
+            continuation,ended = generate_story(
                 model=model,
                 tokenizer=tokenizer,
-                prompt=story,
+                prompt=story.strip(),
                 device=device,
                 **params
             )
             print("\n" + continuation)
             story = continuation
-            
-            
-
+            if ended:
+                print("END OF STORY")
+                break
 
 
 if __name__ == "__main__":
