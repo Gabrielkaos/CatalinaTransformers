@@ -402,7 +402,7 @@ def train():
         p.requires_grad = False
 
 
-    if hasattr(torch, 'compile') and resume_from is None:
+    if hasattr(torch, 'compile'):
         print("Compiling model with torch.compile...")
         model = torch.compile(model)
 
