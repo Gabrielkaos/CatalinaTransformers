@@ -155,10 +155,10 @@ if __name__ == "__main__":
         #     layer.self_attention.c_attn.bias.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
             
         #     #mlp
-    #         layer.feed_forward.linear1.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
-    #         layer.feed_forward.linear2.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
-    #         layer.feed_forward.linear1.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.bias"])
-    #         layer.feed_forward.linear2.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.bias"])
+        #     layer.feed_forward.linear1.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
+        #     layer.feed_forward.linear2.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
+        #     layer.feed_forward.linear1.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.bias"])
+        #     layer.feed_forward.linear2.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.bias"])
         #     # transformer.h.9.mlp.c_fc.weight
 
         #     #copy layer norms
@@ -193,8 +193,8 @@ if __name__ == "__main__":
 
     print("\n=== Generating ===")
     output = generate(
-        model, tokenizer, "I am", 
-        max_len=1,
+        model, tokenizer, "1+1=", 
+        max_len=3,
         device=device,
         top_k=0.5
     )
