@@ -1,43 +1,57 @@
 import torch
 import torch.nn.functional as F
-import tiktoken
-from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
-from pathlib import Path
+from MODEL_TRANSFORMER import build_transformer_encoder
+import string
+
+
+# -------------------------
+# Tokenizer
+# -------------------------
+VOCAB = list(string.ascii_lowercase + string.digits + "/.-_?=&%:")
+PAD = "<PAD>"
+UNK = "<UNK>"
+
+itos = [PAD, UNK] + VOCAB
+stoi = {c: i for i, c in enumerate(itos)}
+
+pad_idx = stoi[PAD]
+unk_idx = stoi[UNK]
+
+
+
+def normalize_url(url):
+    url = url.lower()
+    url = url.replace("http://", "")
+    url = url.replace("https://", "")
+    return url
+
+
+def encode_url(url, max_len=256):
+    url = normalize_url(url)
+    ids = [stoi.get(c, unk_idx) for c in url[:max_len]]
+    if len(ids) < max_len:
+        ids += [pad_idx] * (max_len - len(ids))
+    return ids
+
+label_map = {0:"legitimate",1:"phishing"}
 
 # -------------------------
 # Configuration
 # -------------------------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-MAX_LEN = 1024
-PAD_IDX = 50256
 
-# -------------------------
-# Load metadata
-# -------------------------
-data = torch.load("data.pth", map_location="cpu")
-num_classes = data["num_classes"]
-label_map = data["label_map"]  # {idx: label}
-
-# -------------------------
-# Tokenizer
-# -------------------------
-tokenizer = tiktoken.get_encoding("gpt2")
 
 # -------------------------
 # Build model (same as training)
 # -------------------------
 config = {
-    "vocab_size": 50257,
-    "num_class": 28,
-    "d_model" : 768,
-    "n_layers" : 12,
-    "n_heads" : 12,
-    "is_causal" : False,
-    "block_size" : 1024,
-    "dropout" : 0.1,
-    "mlp_activation" : "gelu"
+    "vocab_size": len(itos),
+    "num_classes": 2,
+    "d_model" : 256,
+    "n_layers" : 4,
+    "n_heads" : 4
 }
-model = gpt_classifier(
+model = build_transformer_encoder(
     **config
 )
 
@@ -62,18 +76,14 @@ model.eval()
 @torch.no_grad()
 def predict(text: str):
     # tokenize
-    tokens = tokenizer.encode(text)
-    tokens = tokens[:MAX_LEN]
+    tokens = encode_url(text)
 
     input_ids = torch.tensor(tokens, dtype=torch.long, device=DEVICE).unsqueeze(0)
 
-    mask = (input_ids != PAD_IDX)
+    mask = (input_ids != pad_idx)
     # forward
-    hidden = model(input_ids,mask=mask,return_hidden=True)   # [B, T, D]
-    mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
-    pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
-    logits = model.last_projection(pooled)
-    probs = torch.sigmoid(logits)[0]
+    logits = model(input_ids,mask=mask)[:,0,:]
+    probs = torch.softmax(logits,dim=-1)[0]
     # mask = probs >= 0.5
 
     # # selected_probs = probs[mask]
@@ -81,7 +91,7 @@ def predict(text: str):
 
     return {
         label_map[i]: probs[i].item()
-        for i in range(num_classes)
+        for i in range(2)
     }
 
 
@@ -97,8 +107,5 @@ if __name__ == "__main__":
             continue
 
         probs = predict(text)
-        max_probs = max(probs.values())
         for k, v in sorted(probs.items(), key=lambda x: x[1], reverse=True):
-            
-            if v >= max_probs-0.1:
-                print(f"{k}: {v:6.2f}%")
+            print(f"{k}: {v:6.2f}%")
