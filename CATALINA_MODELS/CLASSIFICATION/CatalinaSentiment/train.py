@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset
 from torch.amp import autocast, GradScaler
 import time
 from pathlib import Path
 from tqdm import tqdm
-# from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
+from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
 import math
 from transformers import GPT2LMHeadModel
 
@@ -30,7 +30,6 @@ class CustomDataset(Dataset):
             "mask": mask,
             "label": label
         }
-
 
 
 def get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps):
@@ -193,67 +192,6 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
     }
 
 
-def param_groups(model, base_lr, n_layers=12, layer_decay=0.8):
-    groups = []
-    no_decay = ["bias", "norm"]
-
-    def trainable(params):
-        return [p for p in params if p.requires_grad]
-
-    # === embeddings (slowest) ===
-    emb_lr = base_lr * (layer_decay ** n_layers)
-
-    groups.append({
-        "params": trainable(
-            p for n, p in model.embed.named_parameters()
-            if not any(nd in n for nd in no_decay)
-        ),
-        "lr": emb_lr,
-        "weight_decay": 0.01
-    })
-
-    groups.append({
-        "params": trainable(
-            p for n, p in model.embed.named_parameters()
-            if any(nd in n for nd in no_decay)
-        ),
-        "lr": emb_lr,
-        "weight_decay": 0.0
-    })
-
-    # === transformer layers ===
-    for i, layer in enumerate(model.decoder.layers):
-        depth = n_layers - i - 1
-        lr = base_lr * (layer_decay ** depth)
-
-        groups.append({
-            "params": trainable(
-                p for n, p in layer.named_parameters()
-                if not any(nd in n for nd in no_decay)
-            ),
-            "lr": lr,
-            "weight_decay": 0.01
-        })
-
-        groups.append({
-            "params": trainable(
-                p for n, p in layer.named_parameters()
-                if any(nd in n for nd in no_decay)
-            ),
-            "lr": lr,
-            "weight_decay": 0.0
-        })
-
-    # === classifier head (fastest) ===
-    groups.append({
-        "params": trainable(model.last_projection.parameters()),
-        "lr": base_lr,
-        "weight_decay": 0.01
-    })
-
-    return groups
-
-
 def train():
     # ========== Configuration ==========
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -276,22 +214,19 @@ def train():
     }
 
 
-    batch_size = 24
+    batch_size = 64
     gradient_accumulation_steps = 10
-    lr = 3e-5
+    lr = 1e-5
     weight_decay = 0.001
-    epochs = 4
+    epochs = 8
     max_grad_norm = 1.0
-
-
-    val_split = 0.1
     val_every = 1
 
 
     save_dir = Path("checkpoints")
     save_dir.mkdir(exist_ok=True)
     save_every = 5
-    resume_from = None
+    resume_from = "latest.pth"
 
     # ========== Load Data ==========
     print("\nLoading data...")
@@ -403,18 +338,14 @@ def train():
 
     model = model.to(device)
 
-    #freeze embed, unfreeze after one epoch
-    for p in model.embed.parameters():
-        p.requires_grad = False
-
-
-    # if hasattr(torch, 'compile'):
-    #     print("Compiling model with torch.compile...")
-    #     model = torch.compile(model)
+    if hasattr(torch, 'compile'):
+        print("Compiling model with torch.compile...")
+        model = torch.compile(model)
 
     # ========== Setup Training ==========
     optimizer = torch.optim.AdamW(
-        param_groups(model,lr,n_layers=config["n_layers"]),
+        model.parameters(),
+        lr=lr,
         betas=(0.9, 0.999),
         weight_decay=weight_decay,
         eps=1e-8
@@ -474,17 +405,6 @@ def train():
         print(f"\n{'='*60}")
         print(f"Epoch {epoch + 1}/{epochs}")
         print(f"{'='*60}")
-
-        if epoch==1:
-            for p in model.embed.parameters():
-                p.requires_grad = True
-            
-            emb_params = sum(p.numel() for p in model.embed.parameters() if p.requires_grad)
-            print(f"Unfroze embeddings: {emb_params:,} params")
-        else:
-            pass
-
-
 
         train_metrics = train_epoch(
             model, train_loader, optimizer, scheduler, criterion,

@@ -97,6 +97,8 @@ if __name__ == "__main__":
             continue
 
         probs = predict(text)
+        max_probs = max(probs.values())
         for k, v in sorted(probs.items(), key=lambda x: x[1], reverse=True):
-            if v >= 0.5:
+            
+            if v >= max_probs-0.1:
                 print(f"{k}: {v:6.2f}%")
