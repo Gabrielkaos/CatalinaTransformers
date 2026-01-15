@@ -214,11 +214,11 @@ def train():
     }
 
 
-    batch_size = 24
+    batch_size = 64
     gradient_accumulation_steps = 10
-    lr = 3e-5
+    lr = 1e-5
     weight_decay = 0.001
-    epochs = 4
+    epochs = 8
     max_grad_norm = 1.0
     val_every = 1
 
@@ -226,7 +226,7 @@ def train():
     save_dir = Path("checkpoints")
     save_dir.mkdir(exist_ok=True)
     save_every = 5
-    resume_from = None
+    resume_from = "latest.pth"
 
     # ========== Load Data ==========
     print("\nLoading data...")
