@@ -184,7 +184,7 @@ class FeedForwardNet(nn.Module):
 
 
 class MultiHeadBlock(nn.Module):
-    def __init__(self, d_model, n_heads, dropout, use_flash_attn=False, is_causal=True):
+    def __init__(self, d_model, n_heads, dropout, use_flash_attn=False, is_causal=True,bias=True):
         super().__init__()
 
         self.is_causal=is_causal
@@ -200,11 +200,11 @@ class MultiHeadBlock(nn.Module):
         self.rope = RotaryEmbedding(self.d_k)
 
 
-        self.w_q = nn.Linear(d_model, d_model)
-        self.w_k = nn.Linear(d_model, d_model)
-        self.w_v = nn.Linear(d_model, d_model)
+        self.w_q = nn.Linear(d_model, d_model,bias=bias)
+        self.w_k = nn.Linear(d_model, d_model,bias=bias)
+        self.w_v = nn.Linear(d_model, d_model,bias=bias)
 
-        self.w_o = nn.Linear(d_model, d_model)
+        self.w_o = nn.Linear(d_model, d_model,bias=bias)
 
         self.use_flash_attn = use_flash_attn and hasattr(torch.nn.functional, 'scaled_dot_product_attention')
 
@@ -413,33 +413,22 @@ class Transformer(nn.Module):
     def project(self, x):
         return self.proj(x)
 
+
 class TransformerEncoderOnly(nn.Module):
     def __init__(self, encoder: Encoder,
                  src_embed: InputEmbedding,
-                #  src_pos: PositionalEncoding,
                  projection_layer: ProjectionLayer):
         super().__init__()
 
         self.encoder = encoder
         self.src_embed = src_embed
-        # self.src_pos = src_pos
         self.proj = projection_layer
 
     def forward(self, x, mask):
         x = self.src_embed(x)
-        # x = self.src_pos(x)
-        x = self.encoder(x, mask)[:,0,:]
+        x = self.encoder(x, mask)
         return self.proj(x)
 
-
-
-    # def encode(self, src, src_mask):
-    #     src = self.src_embed(src)
-    #     # src = self.src_pos(src)
-    #     return self.encoder(src, src_mask)
-
-    # def project(self, x):
-    #     return self.proj(x)
 
 class TransformerDecoderOnly(nn.Module):
     def __init__(self, decoder, embed, projection):
@@ -493,24 +482,29 @@ def build_transformer_next_token(
 
 
 #encoder only for classifier
-def build_transformer_encoder(vocab_size, num_classes, d_model=512, n_layers=6,
-                          n_heads=8, dropout=0.2, use_flash_attn=False):
+def build_transformer_encoder(vocab_size, num_classes, d_model=256, n_layers=4,
+                          n_heads=4, dropout=0.1,
+                            use_flash_attn=True,
+                            attention_bias=False,
+                            mlp_bias=False,
+                            normalization="rms"):
     # create embed layers
     src_embed = InputEmbedding(d_model, vocab_size)
 
     # encoder_blocks
     encoder_blocks = []
     for _ in range(n_layers):
-        encoder_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout, use_flash_attn=use_flash_attn, is_causal=False)
-        feed_f_block = FeedForwardNet(d_model, d_model * 4, dropout, activation="gelu",bias=True)
-        encoder_block = EncoderBlock(encoder_self_attention_block, feed_f_block, dropout, d_model,bias=True)
+        encoder_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout, use_flash_attn=use_flash_attn, is_causal=False,bias=attention_bias)
+        feed_f_block = FeedForwardNet(d_model, d_model * 4, dropout, activation="gelu",bias=mlp_bias) #bias for mlp
+        encoder_block = EncoderBlock(encoder_self_attention_block, feed_f_block, dropout, d_model,bias=True,norm=normalization) #bias argument for layernorm if using
         encoder_blocks.append(encoder_block)
 
     # encoder decoder
-    encoder = Encoder(nn.ModuleList(encoder_blocks),d_model, bias=False)
+    #bias argument for the layer norm if using
+    encoder = Encoder(nn.ModuleList(encoder_blocks),d_model, bias=False,norm=normalization)
 
     # project layer
-    projection_layer = ProjectionLayer(d_model, num_classes)
+    projection_layer = ProjectionLayer(d_model, num_classes,bias=True)
 
     transformer = TransformerEncoderOnly(encoder, src_embed, projection_layer)
 
