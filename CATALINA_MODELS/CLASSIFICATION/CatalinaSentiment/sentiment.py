@@ -69,10 +69,17 @@ def predict(text: str):
 
     mask = (input_ids != PAD_IDX)
     # forward
-    logits = model(input_ids,mask)
-    mask = mask.unsqueeze(-1)        # [B, T, 1]
-    pooled = (logits * mask).sum(dim=1) / mask.sum(dim=1)
-    probs = torch.softmax(pooled,dim=-1)[0]
+    # logits = model(input_ids,mask)
+    # mask = mask.unsqueeze(-1)        # [B, T, 1]
+    # pooled = (logits * mask).sum(dim=1) / mask.sum(dim=1)
+
+    hidden = model(input_ids,mask=mask,return_hidden=True)   # [B, T, D]
+    mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
+    pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
+    logits = model.last_projection(pooled)
+    probs = torch.softmax(logits,dim=-1)[0]
+
+
     # mask = probs >= 0.5
 
     # # selected_probs = probs[mask]

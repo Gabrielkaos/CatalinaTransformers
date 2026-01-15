@@ -11,9 +11,9 @@ def preprocess(text):
     return " ".join(new_text)
 
 
-def get_data_simplified(max_seq_src):
+def get_data_simplified(max_seq_src,split="train"):
     print("\nFetching Dataset...")
-    dataset = load_dataset("cardiffnlp/tweet_eval", "sentiment", split='train')
+    dataset = load_dataset("cardiffnlp/tweet_eval", "sentiment", split=split)
 
     tokenizer = tiktoken.get_encoding("gpt2")
 
@@ -55,7 +55,7 @@ def get_data_simplified(max_seq_src):
 if __name__ == "__main__":
     max_seq_src = 128
 
-    x, label, label_map, num_labels = get_data_simplified(max_seq_src)
+    x, label, label_map, num_labels = get_data_simplified(max_seq_src,split="test")
 
     inputs_dict = {
         "x": x,
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         "num_classes":num_labels
     }
 
-    torch.save(inputs_dict, "data.pth")
+    torch.save(inputs_dict, "data_test.pth")
 
     # data = torch.load("data.pth",map_location=torch.device("cpu"))
     # tokenizer = tiktoken.get_encoding("gpt2")

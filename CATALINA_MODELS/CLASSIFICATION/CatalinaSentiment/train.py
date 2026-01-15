@@ -5,7 +5,7 @@ from torch.amp import autocast, GradScaler
 import time
 from pathlib import Path
 from tqdm import tqdm
-from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
+# from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
 import math
 from transformers import GPT2LMHeadModel
 
@@ -33,7 +33,7 @@ class CustomDataset(Dataset):
 
 
 
-def get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps, min_lr=0):
+def get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps):
 
     def lr_lambda(current_step):
         if current_step < num_warmup_steps:
@@ -41,7 +41,7 @@ def get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_st
             return float(current_step) / float(max(1, num_warmup_steps))
         # Cosine decay
         progress = float(current_step - num_warmup_steps) / float(max(1, num_training_steps - num_warmup_steps))
-        return max(min_lr, 0.5 * (1.0 + math.cos(math.pi * progress)))
+        return 0.5 * (1.0 + math.cos(math.pi * progress))
 
     return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
@@ -91,19 +91,20 @@ def evaluate(model, loader, criterion, device, is_multilabel=False):
 
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            logits = model(x,mask)
-            mask = mask.unsqueeze(-1)        # [B, T, 1]
-            pooled = (logits * mask).sum(dim=1) / mask.sum(dim=1)
-            loss = criterion(pooled, y)
+            hidden = model(x,mask=mask,return_hidden=True)   # [B, T, D]
+            mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
+            pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
+            logits = model.last_projection(pooled)
+            loss = criterion(logits, y)
 
 
         if is_multilabel:
-            predictions = (torch.sigmoid(pooled) > 0.2).float()
+            predictions = (torch.sigmoid(logits) > 0.2).float()
             accuracy = (predictions == y).float().mean()
         else:
             if y.dim() > 1:
                 y = y.squeeze(-1)
-            predictions = pooled.argmax(dim=-1)
+            predictions = logits.argmax(dim=-1)
             accuracy = (predictions == y).float().mean()
 
         total_loss += loss.item()
@@ -133,10 +134,12 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
         y = batch["label"].to(device, non_blocking=True)
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            logits = model(x,mask)
-            mask = mask.unsqueeze(-1)        # [B, T, 1]
-            pooled = (logits * mask).sum(dim=1) / mask.sum(dim=1)
-            loss = criterion(pooled, y)
+            hidden = model(x,mask=mask,return_hidden=True)   # [B, T, D]
+            mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
+            pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
+            logits = model.last_projection(pooled)
+            # print(logits.shape)
+            loss = criterion(logits, y)
             loss = loss / gradient_accumulation_steps
 
 
@@ -159,14 +162,14 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
 
         with torch.no_grad():
             if is_multilabel:
-                predictions = (torch.sigmoid(pooled) > 0.2).float()
+                predictions = (torch.sigmoid(logits) > 0.2).float()
                 accuracy = (predictions == y).float().mean()
             else:
                 if y.dim() > 1:
                     y_flat = y.squeeze(-1)
                 else:
                     y_flat = y
-                predictions = pooled.argmax(dim=-1)
+                predictions = logits.argmax(dim=-1)
                 accuracy = (predictions == y_flat).float().mean()
 
 
@@ -192,30 +195,63 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
 
 def param_groups(model, base_lr, n_layers=12, layer_decay=0.8):
     groups = []
+    no_decay = ["bias", "norm"]
 
-    # embeddings
+    def trainable(params):
+        return [p for p in params if p.requires_grad]
+
+    # === embeddings (slowest) ===
+    emb_lr = base_lr * (layer_decay ** n_layers)
+
     groups.append({
-        "params": model.embed.parameters(),
-        "lr": base_lr * (layer_decay ** n_layers)
+        "params": trainable(
+            p for n, p in model.embed.named_parameters()
+            if not any(nd in n for nd in no_decay)
+        ),
+        "lr": emb_lr,
+        "weight_decay": 0.01
     })
 
-    # transformer layers
+    groups.append({
+        "params": trainable(
+            p for n, p in model.embed.named_parameters()
+            if any(nd in n for nd in no_decay)
+        ),
+        "lr": emb_lr,
+        "weight_decay": 0.0
+    })
+
+    # === transformer layers ===
     for i, layer in enumerate(model.decoder.layers):
         depth = n_layers - i - 1
+        lr = base_lr * (layer_decay ** depth)
+
         groups.append({
-            "params": layer.parameters(),
-            "lr": base_lr * (layer_decay ** depth)
+            "params": trainable(
+                p for n, p in layer.named_parameters()
+                if not any(nd in n for nd in no_decay)
+            ),
+            "lr": lr,
+            "weight_decay": 0.01
         })
 
-    # classifier head (fastest)
+        groups.append({
+            "params": trainable(
+                p for n, p in layer.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ),
+            "lr": lr,
+            "weight_decay": 0.0
+        })
+
+    # === classifier head (fastest) ===
     groups.append({
-        "params": model.last_projection.parameters(),
-        "lr": base_lr
+        "params": trainable(model.last_projection.parameters()),
+        "lr": base_lr,
+        "weight_decay": 0.01
     })
 
     return groups
-
-
 
 
 def train():
@@ -243,9 +279,8 @@ def train():
     batch_size = 24
     gradient_accumulation_steps = 10
     lr = 3e-5
-    weight_decay = 0.01
+    weight_decay = 0.001
     epochs = 4
-    warmup_steps = 500
     max_grad_norm = 1.0
 
 
@@ -362,6 +397,11 @@ def train():
 
     model = model.to(device)
 
+    #freeze embed, unfreeze after one epoch
+    for p in model.embed.parameters():
+        p.requires_grad = False
+
+
     if hasattr(torch, 'compile'):
         print("Compiling model with torch.compile...")
         model = torch.compile(model)
@@ -396,11 +436,12 @@ def train():
 
 
     total_steps = len(train_loader) * epochs // gradient_accumulation_steps
+    warmup_steps = int(0.1 * total_steps)
+
     scheduler = get_cosine_schedule_with_warmup(
         optimizer,
         num_warmup_steps=warmup_steps,
-        num_training_steps=total_steps,
-        min_lr=lr * 0.1
+        num_training_steps=total_steps
     )
 
 
@@ -428,12 +469,12 @@ def train():
         print(f"Epoch {epoch + 1}/{epochs}")
         print(f"{'='*60}")
 
-        if epoch < 1:
-            for p in model.embed.parameters():
-                p.requires_grad = False
-        elif epoch==1:
+        if epoch==1:
             for p in model.embed.parameters():
                 p.requires_grad = True
+            
+            emb_params = sum(p.numel() for p in model.embed.parameters() if p.requires_grad)
+            print(f"Unfroze embeddings: {emb_params:,} params")
         else:
             pass
 

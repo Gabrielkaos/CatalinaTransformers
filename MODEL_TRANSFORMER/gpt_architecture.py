@@ -147,7 +147,7 @@ class GPTEncoderTransformer(nn.Module):
         self.pos = pos
         self.last_projection = nn.Linear(d_model, num_class,bias=None)
 
-    def forward(self, x,mask=None):
+    def forward(self, x,mask=None,return_hidden=False):
         _,T = x.size()
         pos = torch.arange(0,T, dtype=torch.long, device=x.device)
 
@@ -155,8 +155,10 @@ class GPTEncoderTransformer(nn.Module):
         pos_emb = self.pos(pos)
 
         x = token_emb + pos_emb
-
         x = self.decoder(x,mask=mask)
+        if return_hidden:
+            return x
+
         return self.last_projection(x)
 
 
