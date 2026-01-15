@@ -74,9 +74,13 @@ def predict(text: str):
     # pooled = (logits * mask).sum(dim=1) / mask.sum(dim=1)
 
     hidden = model(input_ids,mask=mask,return_hidden=True)   # [B, T, D]
+    # print(hidden.shape)
     mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
+    # print(mask_f.sum(dim=1))
     pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
+    # print(pooled.shape)
     logits = model.last_projection(pooled)
+    # print(logits.shape)
     probs = torch.softmax(logits,dim=-1)[0]
 
 

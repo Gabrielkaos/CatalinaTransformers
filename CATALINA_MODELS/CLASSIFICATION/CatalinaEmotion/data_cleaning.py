@@ -60,31 +60,31 @@ def get_data_simplified(max_seq_src):
 if __name__ == "__main__":
     max_seq_src = 128
 
-    # x, label, label_map, num_labels = get_data_simplified(max_seq_src)
+    x, label, label_map, num_labels = get_data_simplified(max_seq_src)
 
-    # inputs_dict = {
-    #     "x": x,
-    #     "label": label,
-    #     "label_map":label_map, 
-    #     "num_classes":num_labels
-    # }
+    inputs_dict = {
+        "x": x,
+        "label": label,
+        "label_map":label_map, 
+        "num_classes":num_labels
+    }
 
-    # torch.save(inputs_dict, "data.pth")
+    torch.save(inputs_dict, "data.pth")
 
-    data = torch.load("data.pth",map_location=torch.device("cpu"))
-    tokenizer = tiktoken.get_encoding("gpt2")
+    # data = torch.load("data.pth",map_location=torch.device("cpu"))
+    # tokenizer = tiktoken.get_encoding("gpt2")
 
-    x = data["x"]
-    y = data["label"]
-    label_map = data["label_map"]
-
-
-    only_neutral = [0] * 28
-
-    for i in y:
-        for j in range(28):
-            only_neutral[j] += i[j].item()==1
+    # x = data["x"]
+    # y = data["label"]
+    # label_map = data["label_map"]
 
 
-    print(only_neutral)
-    print(len(y))
+    # only_neutral = [0] * 28
+
+    # for i in y:
+    #     for j in range(28):
+    #         only_neutral[j] += i[j].item()==1
+
+
+    # print(only_neutral)
+    # print(len(y))
