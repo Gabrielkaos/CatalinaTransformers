@@ -108,6 +108,8 @@ class PositionalEncoding(nn.Module):
         x = x + sliced_pos_enc.requires_grad_(False)
 
         return self.dropout(x)
+
+
 """
 LayerNorm
 
@@ -214,7 +216,8 @@ class MultiHeadBlock(nn.Module):
         attention_scores = (query @ key.transpose(-2, -1)) / math.sqrt(d_k)
 
         if mask is not None:
-            attention_scores.masked_fill_(mask == 0, -1e9)
+            mask = mask[:,None,None,:]
+            attention_scores.masked_fill_(mask == 0, float("-inf"))
 
         attention_scores = attention_scores.softmax(dim=-1)
 
@@ -222,21 +225,6 @@ class MultiHeadBlock(nn.Module):
             attention_scores = dropout(attention_scores)
 
         return attention_scores @ value
-
-    # def forward(self, q, k, v, mask):
-    #     query = self.w_q(q)
-    #     key = self.w_k(k)
-    #     value = self.w_v(v)
-
-    #     query = query.view(query.shape[0], query.shape[1], self.n_heads, self.d_k).transpose(1, 2)
-    #     key = key.view(key.shape[0], key.shape[1], self.n_heads, self.d_k).transpose(1, 2)
-    #     value = value.view(value.shape[0], value.shape[1], self.n_heads, self.d_k).transpose(1, 2)
-
-    #     x = MultiHeadBlock.attention(query, key, value, mask, self.dropout)
-
-    #     x = x.transpose(1, 2).contiguous().view(x.shape[0], -1, self.n_heads * self.d_k)
-
-    #     return self.w_o(x)
 
     def forward(self, q, k, v, mask):
         query = self.w_q(q)
@@ -256,6 +244,7 @@ class MultiHeadBlock(nn.Module):
             attn_mask = None
             if not self.is_causal and mask is not None:
                 attn_mask = mask.bool() if mask.dtype != torch.bool else mask
+                attn_mask = attn_mask[:,None,None,:]
             
             x = torch.nn.functional.scaled_dot_product_attention(
                 query, key, value, 
@@ -270,54 +259,6 @@ class MultiHeadBlock(nn.Module):
         x = x.transpose(1, 2).contiguous().view(x.shape[0], -1, self.n_heads * self.d_k)
         return self.w_o(x)
 
-
-class GPT2Attention(nn.Module):
-    def __init__(self, d_model, n_heads, block_size, dropout):
-        super().__init__()
-
-
-        self.d_model = d_model
-        self.n_heads = n_heads
-        self.dropout = nn.Dropout(dropout)
-
-        assert d_model % n_heads == 0, "d_model mod n_heads not equal to zero"
-
-        self.d_k = d_model // n_heads
-
-        # self.rope = RotaryEmbedding(self.d_k)
-
-
-        self.c_attn = nn.Linear(d_model, 3 * d_model)
-
-        self.w_o = nn.Linear(d_model, d_model)
-
-        # self.use_flash_attn = use_flash_attn and hasattr(torch.nn.functional, 'scaled_dot_product_attention')
-        self.register_buffer("bias",torch.tril(torch.ones(block_size,block_size)).view(1,1,block_size, block_size))
-
-    def forward(self, x):
-        
-        
-        B,T,C = x.size()
-
-        qkv = self.c_attn(x)
-
-        q,k,v = qkv.split(self.d_model,dim=2)
-
-        k = k.view(B,T,self.n_heads, C // self.n_heads).transpose(1,2)
-        q = q.view(B,T,self.n_heads, C // self.n_heads).transpose(1,2)
-        v = v.view(B,T,self.n_heads, C // self.n_heads).transpose(1,2)
-
-        # attn = (q @ k.transpose(-2,-1)) * (1.0 / math.sqrt(k.size(-1)))
-        # attn = attn.masked_fill(self.bias[:,:,:T,:T] == 0,float('-inf'))
-        # attn = F.softmax(attn, dim=-1)
-        # y = attn @ v
-        y = F.scaled_dot_product_attention(q,k,v,is_causal=True)
-
-        y = y.transpose(1,2).contiguous().view(B,T,C)
-
-        y = self.w_o(y)
-
-        return y
 
 
 class ResidualConn(nn.Module):
@@ -399,27 +340,6 @@ class DecoderOnlyBlock(nn.Module):
         x = self.residual_conns[1](x, self.feed_forward)
         return x
     
-class GPTDecoderBlock(nn.Module):
-    def __init__(self, self_attention, feed_forward_block: FeedForwardNet, dropout, d_model):
-        super().__init__()
-
-        self.self_attention = self_attention
-        self.feed_forward = feed_forward_block
-
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
-
-        self.dropout = nn.Dropout(dropout)
-
-        # self.residual_conns = nn.ModuleList([GPTResidualConn(dropout,d_model) for _ in range(2)])
-
-    def forward(self, x):
-        # x = self.residual_conns[0](x, lambda x: self.self_attention(x,trgt_mask))
-        # x = self.residual_conns[1](x, self.feed_forward)
-        x = x + self.dropout(self.self_attention(self.norm1(x)))
-        x = x + self.dropout(self.feed_forward(self.norm2(x)))
-        return x
-
 
 class Decoder(nn.Module):
     def __init__(self, layers: nn.ModuleList, d_model, bias=True,norm="layernorm"):
@@ -452,18 +372,6 @@ class DecoderOnly(nn.Module):
             x = layer(x, mask)
         return self.norm(x)
 
-
-class GPTDecoder(nn.Module):
-    def __init__(self, layers: nn.ModuleList, d_model):
-        super().__init__()
-
-        self.layers = layers
-        self.norm = nn.LayerNorm(d_model)
-
-    def forward(self, x):
-        for layer in self.layers:
-            x = layer(x)
-        return self.norm(x)
 
 
 class ProjectionLayer(nn.Module):
@@ -550,57 +458,6 @@ class TransformerDecoderOnly(nn.Module):
         x = self.decoder(x, mask)
         return self.proj(x)
     
-class GPTTransformer(nn.Module):
-    def __init__(self, decoder, embed, pos):
-        super().__init__()
-        self.decoder = decoder
-        self.embed = embed
-        self.pos = pos
-        # self.proj = projection
-
-    def forward(self, x):
-        _,T = x.size()
-        pos = torch.arange(0,T, dtype=torch.long, device=x.device)
-
-        token_emb = self.embed(x)
-        pos_emb = self.pos(pos)
-
-        x = token_emb + pos_emb
-    
-        x = self.decoder(x)
-        return F.linear(x,self.embed.weight,bias=None)
-
-
-def gpt2_like_model(
-    vocab_size,
-    block_size=1024,
-    d_model=512,
-    n_layers=6,
-    n_heads=8,
-    dropout=0.1,
-    bias_projection=False,
-    mlp_activation="gelu"
-):
-    embed = nn.Embedding(vocab_size,d_model)
-    pos = nn.Embedding(block_size,d_model)
-
-    decoder_blocks = []
-    for _ in range(n_layers):
-        self_attn = GPT2Attention(d_model, n_heads, block_size, dropout)
-        ff = FeedForwardNet(d_model, 4 * d_model, dropout,activation=mlp_activation,bias=True)
-        decoder_blocks.append(GPTDecoderBlock(self_attn, ff, dropout, d_model))
-
-    decoder = GPTDecoder(nn.ModuleList(decoder_blocks),d_model)
-    # projection = ProjectionLayer(d_model, vocab_size,bias=bias_projection)
-
-    model = GPTTransformer(decoder, embed,pos)
-
-    # for p in model.parameters():
-    #     if p.dim() > 1:
-    #         nn.init.xavier_uniform_(p)
-
-    return model
-
 
 #decoder only transformer (used for next token prediction)
 def build_transformer_next_token(
@@ -635,21 +492,18 @@ def build_transformer_next_token(
     return model
 
 
-#encoder only
+#encoder only for classifier
 def build_transformer_encoder(vocab_size, num_classes, d_model=512, n_layers=6,
-                          n_heads=8, dropout=0.1, dff=2048, use_flash_attn=True):
+                          n_heads=8, dropout=0.2, use_flash_attn=False):
     # create embed layers
     src_embed = InputEmbedding(d_model, vocab_size)
-
-    # position encoders
-    # src_pos = PositionalEncoding(d_model, src_seq_length, dropout, device=device)
 
     # encoder_blocks
     encoder_blocks = []
     for _ in range(n_layers):
         encoder_self_attention_block = MultiHeadBlock(d_model, n_heads, dropout, use_flash_attn=use_flash_attn, is_causal=False)
-        feed_f_block = FeedForwardNet(d_model, dff, dropout, activation="gelu",bias=False)
-        encoder_block = EncoderBlock(encoder_self_attention_block, feed_f_block, dropout, d_model,bias=False)
+        feed_f_block = FeedForwardNet(d_model, d_model * 4, dropout, activation="gelu",bias=True)
+        encoder_block = EncoderBlock(encoder_self_attention_block, feed_f_block, dropout, d_model,bias=True)
         encoder_blocks.append(encoder_block)
 
     # encoder decoder
