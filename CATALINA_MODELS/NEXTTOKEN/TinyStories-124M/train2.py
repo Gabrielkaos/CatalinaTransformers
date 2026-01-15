@@ -240,7 +240,6 @@ def train():
     lr = 5e-5
     weight_decay = 0.001
     epochs = 2
-    warmup_steps = 1000
     max_grad_norm = 1.0
     
     
@@ -312,10 +311,10 @@ def train():
         print(f"Using {torch.cuda.device_count()} GPUs with DataParallel")
         model = nn.DataParallel(model)
 
-    # total_params = sum(p.numel() for p in model.parameters())
-    # trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    # print(f"Total parameters: {total_params:,}")
-    # print(f"Trainable parameters: {trainable_params:,}")
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,}")
     
     print("Compiling...")
     if hasattr(torch, 'compile'):
@@ -338,7 +337,7 @@ def train():
     total_steps = len(train_loader) * epochs // gradient_accumulation_steps
     scheduler = get_cosine_schedule_with_warmup(
         optimizer,
-        num_warmup_steps=int(0.1*warmup_steps),
+        num_warmup_steps=int(0.1*total_steps),
         num_training_steps=total_steps
     )
     
@@ -357,7 +356,7 @@ def train():
     print("\nStarting training...")
     print(f"Effective batch size: {batch_size * gradient_accumulation_steps}")
     print(f"Total steps: {total_steps}")
-    print(f"Warmup steps: {warmup_steps}\n")
+    print(f"Warmup steps: {int(total_steps*0.1)}\n")
     
     for epoch in range(start_epoch, epochs):
         print(f"\n{'='*50}")
