@@ -299,6 +299,11 @@ def train():
     sequences = data["x"]
     labels = data["label"]
 
+    #testing data
+    test_data = torch.load("data_test.pth")
+    test_sequences = test_data["x"]
+    test_labels = test_data["label"]
+
     vocab = 50257
     num_classes = data["num_classes"]
     pad_idx = 50256
@@ -314,18 +319,19 @@ def train():
     print(f"Task type: {'Multi-label' if is_multilabel else 'Multi-class'} classification")
 
 
-    dataset = CustomDataset(sequences, labels, pad_idx)
+    train_dataset = CustomDataset(sequences, labels, pad_idx)
+    val_dataset = CustomDataset(test_sequences,test_labels,pad_idx)
 
 
-    val_size = int(len(dataset) * val_split)
-    train_size = len(dataset) - val_size
-    train_dataset, val_dataset = random_split(
-        dataset,
-        [train_size, val_size],
-        generator=torch.Generator().manual_seed(42)
-    )
+    # val_size = int(len(dataset) * val_split)
+    # train_size = len(dataset) - val_size
+    # train_dataset, val_dataset = random_split(
+    #     dataset,
+    #     [train_size, val_size],
+    #     generator=torch.Generator().manual_seed(42)
+    # )
 
-    print(f"Train size: {train_size}, Val size: {val_size}")
+    print(f"Train size: {len(train_dataset)}, Val size: {len(val_dataset)}")
 
 
     train_loader = DataLoader(
