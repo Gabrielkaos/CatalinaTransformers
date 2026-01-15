@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from MODEL_TRANSFORMER import gpt2_like_model
+from MODEL_TRANSFORMER.gpt_architecture import gpt2_like_model
 import tiktoken
 from transformers import GPT2LMHeadModel
 
@@ -107,9 +107,7 @@ if __name__ == "__main__":
         "d_model":1024,
         "n_layers":24,
         "n_heads":16,
-        "dropout":0.2,  
-        "bias_projection":False,
-        "mlp_activation":"gelu"
+        "dropout":0.1,
     }
         
     config["vocab_size"] = vocab
@@ -117,7 +115,7 @@ if __name__ == "__main__":
     
     print(f"Data vocab:{vocab}")
     try:
-        data_model=torch.load("best_model.pth",map_location="cpu")
+        data_model=torch.load("gpt.pth",map_location="cpu")
         model.load_state_dict(data_model["model_state"])
         
         # checkpoint = torch.load("brain.pth", map_location=device)
@@ -157,11 +155,10 @@ if __name__ == "__main__":
         #     layer.self_attention.c_attn.bias.data.copy_(sd_hf[f"transformer.h.{i}.attn.c_attn.bias"])
             
         #     #mlp
-        #     if config["mlp_activation"]=="gelu":
-        #         layer.feed_forward.linear1.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
-        #         layer.feed_forward.linear2.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
-        #         layer.feed_forward.linear1.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.bias"])
-        #         layer.feed_forward.linear2.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.bias"])
+    #         layer.feed_forward.linear1.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.weight"].t())
+    #         layer.feed_forward.linear2.weight.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.weight"].t())
+    #         layer.feed_forward.linear1.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_fc.bias"])
+    #         layer.feed_forward.linear2.bias.data.copy_(sd_hf[f"transformer.h.{i}.mlp.c_proj.bias"])
         #     # transformer.h.9.mlp.c_fc.weight
 
         #     #copy layer norms
@@ -192,31 +189,13 @@ if __name__ == "__main__":
     # freeze_bottom_and_embeddings(model)
 
     # torch.save({"model_state":model.state_dict()},"gpt.pth")
+    
 
-    while True:
-        instruction = input("Instruction:")
-        inputs = input("Input:")
-        max_new = int(input("MaxNewLen:"))
-        if instruction=="quit":break
-
-        if inputs:
-            formatted = (
-                    f"Instruction:\n{instruction}\n\n"
-                    f"Input:\n{inputs}\n\n"
-                    f"Response:\n"
-                )
-        else:
-            formatted = (
-                    f"Instruction:\n{instruction}\n\n"
-                    f"Response:\n"
-                )
-
-
-        print("\n=== Generating ===")
-        output = generate(
-            model, tokenizer, formatted, 
-            max_len=max_new,
-            device=device,
-            top_k=0.1
-        )
-        print(output)
+    print("\n=== Generating ===")
+    output = generate(
+        model, tokenizer, "I am", 
+        max_len=1,
+        device=device,
+        top_k=0.5
+    )
+    print(output)
