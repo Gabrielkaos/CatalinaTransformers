@@ -5,42 +5,7 @@ import tiktoken
 from transformers import GPT2LMHeadModel
 
 
-# def freeze_bottom_layers(model, n_layers_to_freeze=12):
-#     if not hasattr(model, 'decoder') or not hasattr(model.decoder, 'layers'):
-#         print("Warning: Model structure not recognized. Cannot freeze layers.")
-#         return
-    
-#     total_layers = len(model.decoder.layers)
-#     n_layers_to_freeze = min(n_layers_to_freeze, total_layers)
-    
-#     for i in range(n_layers_to_freeze):
-#         layer = model.decoder.layers[i]
-#         print(f"Freezing {i} layer")
-#         for param in layer.parameters():
-#             param.requires_grad = False
-    
-#     print(f"Froze bottom {n_layers_to_freeze}/{total_layers} layers")
-    
-#     # Show trainable parameter count after freezing
-#     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-#     total_params = sum(p.numel() for p in model.parameters())
-#     print(f"Trainable parameters: {trainable_params:_}/{total_params:_} ({100*trainable_params/total_params:.1f}%)")
 
-
-# def freeze_embeddings(model):
-#     if hasattr(model, 'embed'):
-#         print("Embeddings frozen")
-#         for param in model.embed.parameters():
-#             param.requires_grad = False
-#     if hasattr(model, 'pos'):
-#         print("Position Embeddings frozen")
-#         for param in model.pos.parameters():
-#             param.requires_grad = False
-
-
-# def freeze_bottom_and_embeddings(model, n_layers_to_freeze=12):
-#     freeze_embeddings(model)
-#     freeze_bottom_layers(model, n_layers_to_freeze)
 def freeze_for_dialogue(model, freeze_until_layer=8):
     """
     freeze_until_layer:
@@ -90,17 +55,17 @@ def generate_story(
     device: str = "cpu",
     verbose: bool = False
 ):
+    
     model.eval()
     
     if stop_sequences is None:
-        stop_sequences = ["<|endoftext|>","END","\n","THE END"]
+        stop_sequences = ["\n\n", "<|endoftext|>", "The End", "THE END"]
     
     token_ids = tokenizer.encode(prompt)
     input_tensor = torch.tensor([token_ids], dtype=torch.long, device=device)
     
     generated_tokens = []
     stop_reached = False
-    
     
     if verbose:
         print(f"Starting generation with prompt: '{prompt}'")
@@ -109,6 +74,7 @@ def generate_story(
     for step in range(max_tokens):
         logits = model(input_tensor)
         logits = logits[:, -1, :]  
+        
         
         if temperature != 1.0:
             logits = logits / temperature
@@ -121,7 +87,6 @@ def generate_story(
             sorted_logits, sorted_indices = torch.sort(logits, descending=True)
             cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
             
-           
             sorted_indices_to_remove = cumulative_probs > top_p
             sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
             sorted_indices_to_remove[..., 0] = 0
@@ -131,14 +96,11 @@ def generate_story(
             )
             logits[indices_to_remove] = -float('Inf')
         
-       
         probs = F.softmax(logits, dim=-1)
         next_token = torch.multinomial(probs, num_samples=1)
         
-        
         next_token_id = next_token.item()
         generated_tokens.append(next_token_id)
-        
         
         input_tensor = torch.cat([input_tensor, next_token], dim=1)
         
@@ -160,23 +122,47 @@ def generate_story(
     
     full_tokens = token_ids + generated_tokens
     full_text = tokenizer.decode(full_tokens)
+    if verbose:
+        print("Initial text before cleaning")
+        print(full_text)
+    
+    full_text = clean_story_text(full_text, prompt)
+    
+    return full_text
 
-    return full_text,stop_reached
+
+def clean_story_text(text: str, original_prompt: str) -> str:
+    
+    sentences = text.split('. ')
+    if len(sentences) > 1 and not sentences[-1].endswith('.'):
+        text = '. '.join(sentences[:-1]) + '.'
+    
+    
+    if text.startswith(original_prompt):
+        return text
+    
+    
+    prompt_clean = original_prompt.strip()
+    text_clean = text.strip()
+    
+    if text_clean.startswith(prompt_clean):
+        return text
+    
+    return original_prompt + text
 
 
-
+# Example usage function
 def interactive_story_generation(model, tokenizer, device="cpu"):
     
     print("\nStory Generator")
     print("Type 'quit' to exit")
     print("Type 'settings' to change generation parameters")
     
-    # Default parameters
     params = {
         'max_tokens': 256,
-        'temperature': 0.8,
+        'temperature': 1.0,
         'top_k': 50,
-        'top_p': 0.9
+        'top_p': 1.0
     }
     
     while True:
@@ -194,7 +180,7 @@ def interactive_story_generation(model, tokenizer, device="cpu"):
             if change.lower() != 'no':
                 try:
                     key, value = change.split()
-                    if key in params:
+                    if key in params.keys():
                         params[key] = float(value) if '.' in value else int(value)
                         print(f"Updated {key} to {params[key]}")
                 except:
@@ -203,7 +189,7 @@ def interactive_story_generation(model, tokenizer, device="cpu"):
         
         print("\nGenerating story...")
         
-        story,ended = generate_story(
+        story = generate_story(
             model=model,
             tokenizer=tokenizer,
             prompt=prompt,
@@ -217,25 +203,17 @@ def interactive_story_generation(model, tokenizer, device="cpu"):
         print(story)
         print("="*60)
         
-        
-        while True:
-            continue_story = input("\nContinue this story? (yes/no): ").lower()
-            if continue_story != "yes":break
-
+        continue_story = input("\nContinue this story? (yes/no): ").lower()
+        if continue_story in ['yes', 'y']:
             print("\nContinuing the story...")
-            continuation,ended = generate_story(
+            continuation = generate_story(
                 model=model,
                 tokenizer=tokenizer,
-                prompt=story.strip(),
+                prompt=story,
                 device=device,
                 **params
             )
-            print("\n" + continuation)
-            story = continuation
-            if ended:
-                print("END OF STORY")
-                break
-
+            print("\n" + continuation[len(story):])
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -263,7 +241,7 @@ if __name__ == "__main__":
         # data_model=torch.load("best_model.pth",map_location="cpu")
         # model.load_state_dict(data_model["model_state"])
         
-        checkpoint = torch.load("best_model.pth", map_location=device)
+        checkpoint = torch.load("best_model1.pth", map_location=device)
         state_dict = checkpoint["model_state"]
 
         
