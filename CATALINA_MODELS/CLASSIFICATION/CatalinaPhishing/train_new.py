@@ -7,7 +7,7 @@ from pathlib import Path
 from tqdm import tqdm
 from MODEL_TRANSFORMER import build_transformer_encoder
 import math
-from vocab1 import itos
+# from vocab1 import itos
 
 
 class CustomDataset(Dataset):
@@ -188,6 +188,13 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
 
 
 def train():
+    # ========== Vocab ==========
+    import string
+    VOCAB = list(string.ascii_lowercase + string.digits + "/.-_?=&%:")
+    PAD = "<PAD>"
+    UNK = "<UNK>"
+
+    itos = [PAD, UNK] + VOCAB
     # ========== Configuration ==========
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
