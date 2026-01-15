@@ -10,7 +10,7 @@ import math
 from transformers import GPT2LMHeadModel
 
 
-class EmotionDataset(Dataset):
+class CustomDataset(Dataset):
     def __init__(self, sequences, labels, pad_idx):
         self.sequences = sequences
         self.labels = labels
@@ -252,7 +252,7 @@ def train():
     print(f"Task type: {'Multi-label' if is_multilabel else 'Multi-class'} classification")
 
 
-    dataset = EmotionDataset(sequences, labels, pad_idx)
+    dataset = CustomDataset(sequences, labels, pad_idx)
 
 
     val_size = int(len(dataset) * val_split)
