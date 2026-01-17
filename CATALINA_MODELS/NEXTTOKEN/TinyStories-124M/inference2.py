@@ -59,7 +59,7 @@ def generate_story(
     model.eval()
     
     if stop_sequences is None:
-        stop_sequences = ["\n\n", "<|endoftext|>", "The End", "THE END"]
+        stop_sequences = ["<|endoftext|>"]
     
     token_ids = tokenizer.encode(prompt)
     input_tensor = torch.tensor([token_ids], dtype=torch.long, device=device)

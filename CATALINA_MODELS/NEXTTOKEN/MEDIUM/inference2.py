@@ -104,9 +104,9 @@ if __name__ == "__main__":
     
     config = {
         "vocab_size": None,
-        "d_model":1024,
-        "n_layers":24,
-        "n_heads":16,
+        "d_model":1280,
+        "n_layers":36,
+        "n_heads":20,
         "dropout":0.1,
     }
         
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     
     print(f"Data vocab:{vocab}")
     try:
-        data_model=torch.load("gpt.pth",map_location="cpu")
+        data_model=torch.load("gpt-large.pth",map_location=device)
         model.load_state_dict(data_model["model_state"])
         
         # checkpoint = torch.load("brain.pth", map_location=device)
@@ -133,7 +133,7 @@ if __name__ == "__main__":
         # model.load_state_dict(new_state_dict) 
 
         #load gpt2
-        # model_hf = GPT2LMHeadModel.from_pretrained("gpt2-medium")
+        # model_hf = GPT2LMHeadModel.from_pretrained("gpt2-large")
         # sd_hf = model_hf.state_dict()
         
         # print("Copying gpt2's weights")
@@ -188,13 +188,13 @@ if __name__ == "__main__":
 
     # freeze_bottom_and_embeddings(model)
 
-    # torch.save({"model_state":model.state_dict()},"gpt.pth")
+    # torch.save({"model_state":model.state_dict()},"gpt-large.pth")
     
 
     print("\n=== Generating ===")
     output = generate(
-        model, tokenizer, "1+1=", 
-        max_len=3,
+        model, tokenizer, "1 + 1 = ", 
+        max_len=10,
         device=device,
         top_k=0.5
     )

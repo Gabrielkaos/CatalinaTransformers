@@ -35,7 +35,7 @@ def encode_url(url, max_len=256):
 
 def get_data_simplified():
     print("\nFetching Dataset...")
-    dataset = load_dataset("stanpony/phishing_urls", split='train')
+    dataset = load_dataset("stanpony/phishing_urls", split='train',streaming=True)
     dataset = dataset.shuffle(seed=213)
 
     # Holders for input and labels

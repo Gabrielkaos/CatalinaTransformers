@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 import tiktoken
 from MODEL_TRANSFORMER.gpt_architecture import gpt_classifier
 from pathlib import Path
@@ -14,9 +13,9 @@ PAD_IDX = 50256
 # -------------------------
 # Load metadata
 # -------------------------
-data = torch.load("data.pth", map_location="cpu")
-num_classes = data["num_classes"]
-label_map = data["label_map"]  # {idx: label}
+data = torch.load("label_map.pth", map_location=DEVICE)
+label_map = data["label_map"]
+num_classes = len(label_map)
 
 # -------------------------
 # Tokenizer

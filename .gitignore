@@ -10,3 +10,5 @@
 
 /LEARN/*
 .venv
+CATALINA-QWEN-0.5B/general/offload/index.json
+CATALINA-SmolLM2-360M/general/offload/index.json
