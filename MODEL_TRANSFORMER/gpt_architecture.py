@@ -155,11 +155,14 @@ class GPTEncoderTransformer(nn.Module):
         pos_emb = self.pos(pos)
 
         x = token_emb + pos_emb
-        x = self.decoder(x,mask=mask)
+        hidden = self.decoder(x,mask=mask)
         if return_hidden:
-            return x
+            mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
+            pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
+            logits = self.last_projection(pooled)
+            return logits
 
-        return self.last_projection(x)
+        return self.last_projection(hidden)
 
 
 

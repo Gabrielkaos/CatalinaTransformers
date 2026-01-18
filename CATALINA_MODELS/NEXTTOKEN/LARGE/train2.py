@@ -8,7 +8,7 @@ from pathlib import Path
 from tqdm import tqdm
 # from MODEL_TRANSFORMER import gpt2_like_model
 
-def freeze_params(model, freeze_until_layer=8):
+def freeze_for_dialogue(model, freeze_until_layer=8):
     """
     freeze_until_layer:
       GPT-2 small (12 layers): 8
@@ -227,19 +227,19 @@ def train():
    
     config = {
         "vocab_size": None,
-        "d_model":1024,
-        "n_layers":24,
-        "n_heads":16,
+        "d_model":1280,
+        "n_layers":36,
+        "n_heads":20,
         "dropout":0.1,
         "mlp_activation":"gelu"
     }
     
    
-    batch_size = 12
-    gradient_accumulation_steps = 10 
-    lr = 5e-5
-    weight_decay = 0.001
-    epochs = 2
+    batch_size = 4
+    gradient_accumulation_steps = 16 
+    lr = 3e-5
+    weight_decay = 0.01
+    epochs = 3
     max_grad_norm = 1.0
     
     
@@ -300,11 +300,11 @@ def train():
     # ========== Build Model ==========
     print("Building model...")
     model = gpt2_like_model(**config).to(device)
-    model.load_state_dict(torch.load("gpt2-medium.pth",map_location=device)["model_state"])
+    model.load_state_dict(torch.load("gpt2-large.pth",map_location=device)["model_state"])
     print("Model loaded successfully!")
     
     #freeze some layers
-    freeze_params(model,freeze_until_layer=4)
+    freeze_for_dialogue(model,freeze_until_layer=18)
 
     # Wrap with DataParallel
     if torch.cuda.device_count() > 1:

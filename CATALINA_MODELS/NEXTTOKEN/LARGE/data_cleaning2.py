@@ -8,24 +8,28 @@ def process_data(
     split
 ):
     tokenizer = tiktoken.get_encoding("gpt2")
-    dataset = load_dataset("abisee/cnn_dailymail","3.0.0", split=split,streaming=True)
-    dataset = dataset.shuffle(seed=43)
+    dataset = load_dataset("HuggingFaceH4/helpful-instructions", split=split,streaming=True)
+    dataset = dataset.shuffle(seed=12123)
 
     input_seqs = []
     label_seqs = []
     skipped = 0
 
     for item in tqdm(dataset):
-        text = item["article"]
+        question = item["instruction"]
+        answer = item["demonstration"]
 
-        tokens = tokenizer.encode(text)[:max_seq_len]
+        full_text = f"Q: {question}\nA: {answer}"
 
-        if len(tokens) < 100:
+        tokens = tokenizer.encode(full_text)
+
+        if len(tokens) >= max_seq_len:
             skipped += 1
             continue
         
         pad_len = (max_seq_len - len(tokens))
         inputs = tokens[:-1]
+        #50256 = <|endoftext|>
         inputs += [50256] * pad_len
 
         labels = tokens[1:]
@@ -37,7 +41,7 @@ def process_data(
         input_seqs.append(inputs)
         label_seqs.append(labels)
 
-        if len(input_seqs)>=50_000:break
+        # if len(input_seqs)>=20_000:break
 
 
     print(f"Total samples: {len(input_seqs)} | Skipped: {skipped}")
@@ -47,7 +51,7 @@ def process_data(
 if __name__ == "__main__":
     
     x,y = process_data(
-        max_seq_len=257, 
+        max_seq_len=256, 
         split="train"
     )
     

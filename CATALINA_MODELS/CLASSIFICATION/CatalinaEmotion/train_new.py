@@ -90,10 +90,7 @@ def evaluate(model, loader, criterion, device, is_multilabel=False):
 
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            hidden = model(x,mask=mask,return_hidden=True)   # [B, T, D]
-            mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
-            pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
-            logits = model.last_projection(pooled)
+            logits = model(x,mask=mask,return_hidden=True)
             loss = criterion(logits, y)
 
 
@@ -133,10 +130,7 @@ def train_epoch(model, loader, optimizer, scheduler, criterion, scaler, device,
         y = batch["label"].to(device, non_blocking=True)
 
         with autocast(device_type=device.type, enabled=(device.type == "cuda")):
-            hidden = model(x,mask=mask,return_hidden=True)   # [B, T, D]
-            mask_f = mask.unsqueeze(-1).float()               # [B, T, 1]
-            pooled = (hidden * mask_f).sum(dim=1) / mask_f.sum(dim=1)  # [B, D]
-            logits = model.last_projection(pooled)
+            logits = model(x,mask=mask,return_hidden=True)   # [B, T, D]
             # print(logits.shape)
             loss = criterion(logits, y)
             loss = loss / gradient_accumulation_steps
@@ -214,11 +208,11 @@ def train():
     }
 
 
-    batch_size = 64
-    gradient_accumulation_steps = 10
-    lr = 1e-5
+    batch_size = 32;print("batch_size",batch_size)
+    gradient_accumulation_steps = 30;print("accumulation",gradient_accumulation_steps)
+    lr = 1e-5;print("lr",lr)
     weight_decay = 0.001
-    epochs = 8
+    epochs = 8;print("epoch",epochs)
     max_grad_norm = 1.0
     val_every = 1
 
@@ -257,15 +251,6 @@ def train():
     train_dataset = CustomDataset(sequences, labels, pad_idx)
     val_dataset = CustomDataset(test_sequences,test_labels,pad_idx)
 
-
-    # val_size = int(len(dataset) * val_split)
-    # train_size = len(dataset) - val_size
-    # train_dataset, val_dataset = random_split(
-    #     dataset,
-    #     [train_size, val_size],
-    #     generator=torch.Generator().manual_seed(42)
-    # )
-
     print(f"Train size: {len(train_dataset)}, Val size: {len(val_dataset)}")
 
 
@@ -275,7 +260,7 @@ def train():
         shuffle=True,
         num_workers=4,
         pin_memory=True if device.type == "cuda" else False,
-        persistent_workers=True
+        persistent_workers=False
     )
 
     val_loader = DataLoader(
@@ -284,7 +269,7 @@ def train():
         shuffle=False,
         num_workers=2,
         pin_memory=True if device.type == "cuda" else False,
-        persistent_workers=True
+        persistent_workers=False
     )
 
     # ========== Build Model ==========
@@ -338,9 +323,13 @@ def train():
 
     model = model.to(device)
 
-    if hasattr(torch, 'compile'):
-        print("Compiling model with torch.compile...")
-        model = torch.compile(model)
+    if torch.cuda.device_count() > 1:
+        print(f"Using {torch.cuda.device_count()} GPUs with DataParallel")
+        model = nn.DataParallel(model,device_ids=[0,1])
+
+    # if hasattr(torch, 'compile'):
+    #     print("Compiling model with torch.compile...")
+    #     model = torch.compile(model)
 
     # ========== Setup Training ==========
     optimizer = torch.optim.AdamW(
