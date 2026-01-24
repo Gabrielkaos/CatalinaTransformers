@@ -96,6 +96,8 @@ def setup_model_for_chat_finetuning(model_name):
 
 def prepare_chat_dataset_conversations(tokenizer, max_len=512, dataset_name="your_dataset"):
     dataset = load_dataset(dataset_name, split="train")
+    dataset = dataset.shuffle(seed=12122)
+    dataset = dataset.select(range(10000))
 
     def tokenize_and_mask(example):
         system = ""
@@ -160,57 +162,6 @@ def prepare_chat_dataset_conversations(tokenizer, max_len=512, dataset_name="you
     return dataset
 
 
-def prepare_chat_dataset1(tokenizer, max_len=512, dataset_name="chimbiwide/think-10k"):
-    dataset = load_dataset(dataset_name, split="train")
-
-    def tokenize_and_mask(example):
-        instruction = example["prompt"]
-        # input_text = example.get("input", "")
-        output = example["response"]
-
-        prompt = (
-            f"### Instruction:\n{instruction}\n\n"
-            f"### Response:\n"
-        )
-
-        full_text = prompt + output + tokenizer.eos_token
-
-        tokenized = tokenizer(
-            full_text,
-            truncation=True,
-            max_length=max_len,
-            padding=False,
-        )
-
-        input_ids = tokenized["input_ids"]
-
-        # Tokenize prompt alone to find cutoff
-        prompt_ids = tokenizer(
-            prompt,
-            truncation=True,
-            max_length=max_len,
-            padding=False,
-        )["input_ids"]
-
-        labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
-
-        # Truncate labels to match input_ids length
-        labels = labels[:len(input_ids)]
-
-        return {
-            "input_ids": input_ids,
-            "attention_mask": tokenized["attention_mask"],
-            "labels": labels,
-        }
-
-    dataset = dataset.map(
-        tokenize_and_mask,
-        remove_columns=dataset.column_names,
-        num_proc=4,
-    )
-
-    return dataset
-
 
 def train_chat_model(model, tokenizer, dataset, output_dir="./chat_model"):
     
@@ -257,7 +208,7 @@ def train_chat_model(model, tokenizer, dataset, output_dir="./chat_model"):
 if __name__ == "__main__":
     # print("Setting up model for chat fine-tuning...")
 
-    model_dir = "./small-think"
+    model_dir = "./orca"
     base_model_name = "Qwen/Qwen2.5-1.5B"
 
     # model, tokenizer = load_trained_model(model_dir, base_model_name)
@@ -268,19 +219,19 @@ if __name__ == "__main__":
     
     
     print("\nPreparing chat dataset...")
-    dataset = prepare_chat_dataset1(tokenizer)
+    dataset = prepare_chat_dataset_conversations(tokenizer)
 
     # # see data
-    # sample = dataset[0]
-    # for tid, label in zip(sample["input_ids"], sample["labels"]):
-    #     token = tokenizer.decode([tid])
-    #     print(f"{token!r:15} -> {label}")
-    # print(sample["attention_mask"])
+    sample = dataset[0]
+    for tid, label in zip(sample["input_ids"], sample["labels"]):
+        token = tokenizer.decode([tid])
+        print(f"{token!r:15} -> {label}")
+    print(sample["attention_mask"])
         
    
-    print("\nStarting fine-tuning...")
-    model = train_chat_model(model, tokenizer, dataset,output_dir=model_dir)
-    print("Done training.")
+    # print("\nStarting fine-tuning...")
+    # model = train_chat_model(model, tokenizer, dataset,output_dir=model_dir)
+    # print("Done training.")
     
     
     # print("\nTesting generation...")
