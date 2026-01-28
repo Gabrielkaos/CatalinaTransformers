@@ -146,19 +146,22 @@ if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore")
 
-    model_dir = "./chat"
+    model_dir = "./chem/checkpoint-400"
     base_model_name = "Qwen/Qwen2.5-1.5B"
 
     model, tokenizer = load_trained_model(model_dir, base_model_name)
     while True:
-        prompt1 = input("Instruction:")
+        prompt1 = input("Question:")
         if prompt1=="quit":
             break
-        prompt = f"### Instruction:\n{prompt1}\n\n### Response:\n"
+        prompt = (
+            f"### Question:\n{prompt1}\n\n"
+            f"### Response:\n"
+        )
         
-        # response = generate_response(model, tokenizer, prompt, skip_special=False, sample=False, max_length=8196)
-        response = generate_response_with_thinking(model, tokenizer, prompt, max_length=8196)
-        # print(f"\nOutput:\n{response}")
+        response = generate_response(model, tokenizer, prompt, skip_special=False, sample=False, max_length=8196)
+        # response = generate_response_with_thinking(model, tokenizer, prompt, max_length=8196)
+        print(f"\nOutput:\n{response}")
         print()
 
     # print(f"EOS token: {tokenizer.eos_token}")

@@ -34,6 +34,66 @@ class CausalLMDataCollator(DataCollatorWithPadding):
         return batch
 
 
+def prepare_chat_dataset_kaggle(
+    tokenizer,
+    max_len=512,
+    csv_path="/kaggle/input/chemistry-problem-solution-dataset/train.csv"
+):
+    # 1. Load CSV
+    dataset = load_dataset(
+        "csv",
+        data_files=csv_path,
+        split="train"
+    )
+
+    dataset = dataset.shuffle(seed=2222)
+
+    def tokenize_and_mask(example):
+        instruction = example["message_1"]
+        output = example["message_2"]
+
+        prompt = (
+            f"### Question:\n{instruction}\n\n"
+            f"### Response:\n"
+        )
+
+        full_text = prompt + output + tokenizer.eos_token
+
+        tokenized = tokenizer(
+            full_text,
+            truncation=True,
+            max_length=max_len,
+            padding=False,
+        )
+
+        input_ids = tokenized["input_ids"]
+
+        # Tokenize prompt alone to mask it
+        prompt_ids = tokenizer(
+            prompt,
+            truncation=True,
+            max_length=max_len,
+            padding=False,
+        )["input_ids"]
+
+        labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+        labels = labels[:len(input_ids)]
+
+        return {
+            "input_ids": input_ids,
+            "attention_mask": tokenized["attention_mask"],
+            "labels": labels,
+        }
+
+    dataset = dataset.map(
+        tokenize_and_mask,
+        remove_columns=dataset.column_names,
+        num_proc=4,  # Kaggle usually prefers <=4
+    )
+
+    return dataset
+
+
 def setup_model_for_chat_finetuning(model_name):
     
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -93,20 +153,34 @@ def setup_model_for_chat_finetuning(model_name):
     
     return model, tokenizer
 
-
-
-def prepare_chat_dataset1(tokenizer, max_len=512, dataset_name="chimbiwide/think-10k"):
+def prepare_chat_dataset1(tokenizer, max_len=512, dataset_name="oumi-ai/lmsys_chat_1m_clean_R1"):
     dataset = load_dataset(dataset_name, split="train")
+    dataset = dataset.shuffle(seed=2222)
+
+    def no_deepseek(example):
+        instr = example["prompt"].lower()
+        resp = example["response"].lower()
+        return "deepseek" not in instr and "deepseek" not in resp
+
+    dataset = dataset.filter(
+        no_deepseek,
+        num_proc=8
+    )
 
     def tokenize_and_mask(example):
         instruction = example["prompt"]
         # input_text = example.get("input", "")
         output = example["response"]
 
+        if "</think>" in output:
+            output = output.split("</think>")[1].strip()
+
         prompt = (
             f"### Instruction:\n{instruction}\n\n"
             f"### Response:\n"
         )
+
+        
 
         full_text = prompt + output + tokenizer.eos_token
 
@@ -141,7 +215,7 @@ def prepare_chat_dataset1(tokenizer, max_len=512, dataset_name="chimbiwide/think
     dataset = dataset.map(
         tokenize_and_mask,
         remove_columns=dataset.column_names,
-        num_proc=4,
+        num_proc=8,
     )
 
     return dataset
@@ -154,12 +228,13 @@ def train_chat_model(model, tokenizer, dataset, output_dir="./chat_model"):
         num_train_epochs=2,
         per_device_train_batch_size=4,
         gradient_accumulation_steps=8,
-        learning_rate=2e-4,
+        learning_rate=1e-4,
         fp16=True,
         log_level="info",
         report_to="none",
-        logging_steps=10,
-        save_strategy="epoch",
+        logging_steps=5,
+        save_strategy="steps",
+        save_steps=100,
         warmup_steps=100,
         optim="paged_adamw_8bit",  
         dataloader_num_workers=4,
@@ -192,7 +267,7 @@ def train_chat_model(model, tokenizer, dataset, output_dir="./chat_model"):
 if __name__ == "__main__":
     # print("Setting up model for chat fine-tuning...")
 
-    model_dir = "./small-think"
+    model_dir = "./chem"
     base_model_name = "Qwen/Qwen2.5-1.5B"
 
     # model, tokenizer = load_trained_model(model_dir, base_model_name)
@@ -201,9 +276,8 @@ if __name__ == "__main__":
         model_name=base_model_name
     )
     
-    
     print("\nPreparing chat dataset...")
-    dataset = prepare_chat_dataset1(tokenizer)
+    dataset = prepare_chat_dataset_kaggle(tokenizer)
 
     # # see data
     # sample = dataset[0]

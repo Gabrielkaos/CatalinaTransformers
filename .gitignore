@@ -11,6 +11,8 @@
 
 .venv
 CATALINA-QWEN-0.5B/general/offload/index.json
-CATALINA-QWEN-0.5B/chat-1.5/chat/*
-CATALINA-QWEN-0.5B/small-think/small-think/*
+CATALINA-QWEN-1.5B/chem/chem/*
+CATALINA-QWEN-1.5B/orca-small/orca/*
+CATALINA-QWEN-1.5B/small-think/small-think/*
+CATALINA-QWEN-1.5B/small-think/small-think-old/*
 CATALINA-SmolLM2-360M/general/offload/index.json

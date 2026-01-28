@@ -12,6 +12,73 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
+def clean_output(text):
+        
+    text = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"\1/\2", text)
+    text = re.sub(r"\^\{\\frac\{(\d+)\{(\d+)\}\}\}", r"^(\1/\2)", text)
+
+
+    
+    text = re.sub(r"\\boxed\{([^}]+)\}", r"[\1]", text)
+
+    
+    text = re.sub(r"\\text\{([^}]+)\}", r"\1", text)
+    text = re.sub(r"\\quad|\\qquad", " ", text)
+    text = re.sub(r"\\sqrt\[(\d+)\]\{([^}]+)\}", r"(\2)^(1/\1)", text)
+    text = re.sub(r"\\sqrt\{([^}]+)\}", r"sqrt(\1)", text)
+    text = re.sub(r"\\times", "*", text)
+    text = re.sub(r"\\pi", "π", text)
+    text = re.sub(r"\\approx", "approximate~", text)
+    text = re.sub(r"\\left|\\right", "", text)
+    text = re.sub(r"\^\{([^}]+)\}", r"^(\1)", text)
+    text = re.sub(r"1/2\s*sqrt", "1/(2*sqrt)", text)
+    text = re.sub(r"([-\w^]+)/sqrt", r"(\1)/sqrt", text)
+    text = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"(\1)/(\2)", text)
+
+    text = re.sub(r"\\equiv", "≡", text)
+    text = re.sub(r"\\pmod\{([^}]+)\}", r"(mod \1)", text)
+
+    text = re.sub(r"\\mathbb\{([^}]+)\}", r"\1", text)
+
+    text = re.sub(r"\\cdot", "*", text)
+    text = re.sub(r"\\div", "/", text)
+    text = re.sub(r"\\%", "%", text)
+    text = re.sub(r"\\frac\{([^{}]+)\{([^}]+)\)\}", r"\1/\2", text)
+
+    text = re.sub(r"-\\log", r"(-log)", text)
+    text = re.sub(r"\\log", r"log", text)
+
+    text = re.sub(r"\\setminus", "-", text)  # Set difference
+    text = re.sub(r"\\cap", "∩", text)  # Intersection
+    text = re.sub(r"\\cup", "∪", text)  # Union
+    text = re.sub(r"\\emptyset", "∅", text)  # Empty set
+    text = re.sub(r"\\subset", "⊂", text)  # Subset
+    text = re.sub(r"\\subseteq", "⊆", text)  # Subset or equal
+    text = re.sub(r"\\in", "∈", text)  # Element of
+    text = re.sub(r"\\notin", "∉", text)  # Not element of
+    
+    text = text.replace(r"\(", "").replace(r"\)", "")
+    text = text.replace(r"\[", "").replace(r"\]", "")
+
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    text = re.sub(r"\\begin\{pmatrix\}(.*?)\\end\{pmatrix\}", lambda m: "[" + m.group(1).replace("\\\\", "; ").strip() + "]", text, flags=re.DOTALL)
+    text = re.sub(r"\\begin\{vmatrix\}(.*?)\\end\{vmatrix\}", lambda m: "|" + m.group(1).replace("\\\\", "; ").strip() + "|", text, flags=re.DOTALL)
+    text = re.sub(r"\\begin\{cases\}(.*?)\\end\{cases\}", lambda m: m.group(1).replace("\\\\", "\n").strip(), text, flags=re.DOTALL)
+
+    text = re.sub(r"\\mathbf\{([^}]+)\}", r"\1", text)
+
+    text = re.sub(r"\\det\(([^)]+)\)", r"det(\1)", text)
+
+    text = re.sub(r"\\vmatrix", "det", text)
+
+    text = re.sub(r"\s*&\s*", " ", text)
+
+    text = re.sub(r"\\\s*$", "", text)
+
+    return text.strip()
+
 while True:
     prompt = input("\n:")
     if prompt in ["quit","exit"]:break
@@ -67,7 +134,6 @@ while True:
     )[0]
 
     print("#" * 100)
-    response = response.strip()
-    print(response)
+    print(clean_output(response))
     print("#" * 100)
     print()

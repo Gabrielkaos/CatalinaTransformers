@@ -18,10 +18,10 @@ def load_trained_model(model_dir, base_model_name):
     base_model = AutoModelForCausalLM.from_pretrained(
         base_model_name,
         dtype=torch.float16,
-        device_map="auto",
+        device_map="cuda",
+        trust_remote_code=True,
         offload_folder="offload"
     )
-    
     
     model = PeftModel.from_pretrained(
         base_model, 
@@ -33,11 +33,14 @@ def load_trained_model(model_dir, base_model_name):
     return model, tokenizer
 
 
+
 def generate_response(model, tokenizer, prompt, max_length=128, skip_special=False, sample=True
                       ,temp=0.7,top_p=0.9):
     
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     model.eval()
+    input_ids = inputs["input_ids"]
+    input_len = input_ids.shape[1]
     
     with torch.no_grad():
         outputs = model.generate(
@@ -48,10 +51,12 @@ def generate_response(model, tokenizer, prompt, max_length=128, skip_special=Fal
             top_p=top_p,
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id, 
-            repetition_penalty=1.1
+            repetition_penalty=1.1,
+            
         )
     
-    response = tokenizer.decode(outputs[0], skip_special_tokens=skip_special)
+    outputs = outputs[0][input_len:]
+    response = tokenizer.decode(outputs, skip_special_tokens=skip_special)
     if not skip_special and tokenizer.eos_token in response:
         response = response.split(tokenizer.eos_token)[0]
     return response
@@ -59,31 +64,30 @@ def generate_response(model, tokenizer, prompt, max_length=128, skip_special=Fal
 
 # Main execution
 if __name__ == "__main__":
+    import warnings
+    warnings.filterwarnings("ignore")
 
-    model_dir = "./persona_dialogue"
-    base_model_name = "openai-community/gpt2"
-
-    
+    model_dir = "./orca"
+    base_model_name = "Qwen/Qwen2.5-1.5B"
 
     model, tokenizer = load_trained_model(model_dir, base_model_name)
-    context = "I am an animal activist.\nThe holidays make me depressed.\nI have rainbow hair.\nI spend my time bird watching with my cats."
-    question = "I feel old.\nI am currently in a juvenile detention center.\nI will be released in about a month.\nI am here for shoplifting."
-    # while True:
-        # context = input("User 1 Persona:")
-        # if context=="quit":
-        #     break
-        # question = input("User 2 Persona:")
+
+    system = "Your name is Catalina. A helpful Large Language Model based on Qwen2.5 finetuned by Gab. You give detailed and long answers."
+
+    while True:
+        human = input("Prompt:")
+        if human=="quit":
+            break
+        prompt = (
+            f"### System:\n{system}\n\n"
+            f"### Instruction:\n{human}\n\n"
+            f"### Response:\n"
+        )
         
-    prompt = (
-        f"### User 1 Persona:\n{context}\n\n"
-        f"### User 2 Persona:\n{question}\n\n"
-        f"### Dialogue:\n"
-    )
-    
-    response = generate_response(model, tokenizer, prompt, skip_special=False, sample=True, max_length=1024)
-    # print(f"\nOutput:{response.split("### Answer:\n")[1]}")
-    print(response)
-    print()
+        response = generate_response(model, tokenizer, prompt, skip_special=False, sample=False, max_length=8196)
+        # response = generate_response_with_thinking(model, tokenizer, prompt, max_length=8196)
+        print(f"\nOutput:\n{response}")
+        print()
 
     # print(f"EOS token: {tokenizer.eos_token}")
     # print(f"EOS token ID: {tokenizer.eos_token_id}")
